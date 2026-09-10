@@ -22,15 +22,31 @@
  * too, otherwise the fail-safe guarantee only holds once setup() has
  * actually executed.
  *
- * Relay feedback (bench test): read back a spare relay contact to
- * confirm the relay contact really actuated when commanded.
- *   ESP32 GND -> relay COM, relay NO -> PIN_FEEDBACK.
- *   Uses only the ESP32's own GND through a spare/unused contact - no
- *   coil voltage or mains involved, so no isolation is needed for this
- *   test wiring. Note: a 1-channel relay has only one COM terminal, so
- *   this test loopback and the NC production wiring above can't be
- *   connected at the same time - test first, then move COM/NC to the
- *   real circuit.
+ * State feedback: PIN_FEEDBACK reads the contactor's NO auxiliary
+ * contact - terminals 13/14 on the Schneider LC1E0910M5 - so what we
+ * report is what the contactor actually did, not merely what we asked
+ * it to do.
+ *   ESP32 GND -> terminal 13, terminal 14 -> PIN_FEEDBACK.
+ *   The aux contact is a dry contact: it carries only the voltage we
+ *   feed into it, so this loop sits at 3.3 V throughout and needs no
+ *   isolation - PROVIDED 13/14 are wired to nothing else.
+ *   Use an EXTERNAL 1k pull-up from PIN_FEEDBACK to 3.3 V instead of
+ *   relying on the internal one. Schneider rates this aux contact for a
+ *   minimum of 17 V / 5 mA; the ESP32's ~45k internal pull-up passes
+ *   only ~70 uA, far too little to break through the oxide film that
+ *   forms on the contact surface, which shows up as intermittent false
+ *   readings. 1k gives ~3.3 mA.
+ *   Until 13/14 are physically wired, this pin just sits at the pull-up
+ *   and reports OFF permanently.
+ *
+ * Topics: cmd (in, not retained - retaining it would make the ESP32
+ * re-execute the last command on every reconnect, which would defeat
+ * the fail-safe above), state (out, RETAINED - the real contactor
+ * reading), log (out, not retained), avail (out, retained, "online" /
+ * "offline" via MQTT's last will). A subscriber gets the retained state
+ * the instant it subscribes, which is what lets the app show the true
+ * current state on open; avail tells it whether that value is live or
+ * was left behind by an ESP32 that has since died.
  *
  * WiFi: tries WIFI_SSID_1 first, falls back to WIFI_SSID_2 if it can't
  * connect within WIFI_TIMEOUT_MS. This runs at boot AND is re-run from
@@ -63,6 +79,7 @@ const uint32_t WIFI_TIMEOUT_MS = 15000;   // how long to try each network before
 const char *T_CMD   = "home/pump/cmd";
 const char *T_STATE = "home/pump/state";   // relay feedback, retained
 const char *T_LOG   = "home/pump/log";     // system log, not retained
+const char *T_AVAIL = "home/pump/avail";   // "online" / "offline" (LWT), retained
 
 const int  PIN_RELAY        = 26;
 // Hardware property of this opto module - it triggers (energizes the
@@ -246,7 +263,18 @@ void setup() {
   pinMode(PIN_RELAY, OUTPUT);
   relayWrite(false);
 
+  // The external 1k pull-up does the real work here (see header); the
+  // internal one costs nothing and keeps the pin defined if that
+  // resistor is ever missing.
   pinMode(PIN_FEEDBACK, INPUT_PULLUP);
+
+  // Seed the feedback state from an actual reading, so the first thing
+  // we publish reflects reality rather than a guessed default.
+  delay(10);
+  fbLastRaw = digitalRead(PIN_FEEDBACK);
+  if (FEEDBACK_ACTIVE_LOW) fbLastRaw = !fbLastRaw;
+  fbStable   = fbLastRaw;
+  fbChangeMs = millis();
 
   Serial.begin(115200);
 
@@ -274,8 +302,14 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED && !mqtt.connected()
       && millis() - lastTryMs > 5000) {
     lastTryMs = millis();
-    if (mqtt.connect("pump-esp32", MQTT_USER, MQTT_PASS)) {
+    // The last will lets the broker announce "offline" for us if we drop
+    // without saying goodbye - otherwise the retained state below would
+    // keep looking authoritative long after this board had died.
+    if (mqtt.connect("pump-esp32", MQTT_USER, MQTT_PASS,
+                     T_AVAIL, 1, true, "offline")) {
+      mqtt.publish(T_AVAIL, "online", true);
       mqtt.subscribe(T_CMD, 1);
+      publishFeedback(fbStable);   // refresh the retained state right away
       logLine("mqtt connected");
     }
   }
