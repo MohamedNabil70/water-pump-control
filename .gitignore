@@ -1,0 +1,19 @@
+# Local credentials - never commit these.
+# Copy secrets_example.h to secrets.h and fill in your own values.
+secrets.h
+
+# Arduino / PlatformIO build output
+build/
+.pio/
+.pioenvs/
+*.hex
+*.bin
+*.elf
+*.map
+
+# Editor / OS junk
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
