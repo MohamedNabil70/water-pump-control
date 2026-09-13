@@ -43,10 +43,30 @@
  * re-execute the last command on every reconnect, which would defeat
  * the fail-safe above), state (out, RETAINED - the real contactor
  * reading), log (out, not retained), avail (out, retained, "online" /
- * "offline" via MQTT's last will). A subscriber gets the retained state
- * the instant it subscribes, which is what lets the app show the true
- * current state on open; avail tells it whether that value is live or
- * was left behind by an ESP32 that has since died.
+ * "offline" via MQTT's last will), hb (out, NOT retained - proof of
+ * life every HEARTBEAT_MS, payload = uptime in seconds), status (out,
+ * NOT retained - the reply to a STATUS command).
+ *
+ * Commands accepted on cmd: ON, OFF, RESTART, STATUS. STATUS asks the
+ * board to report which WiFi network it is on, its signal strength, IP,
+ * uptime and current contactor state. It is the on-demand counterpart
+ * to the heartbeat: instead of the board announcing itself constantly
+ * whether or not anyone is listening, the app asks when it actually
+ * wants to know - on open, or behind a "check controller" button. Hear
+ * no reply within a second or two and the controller is not there.
+ *
+ * How a subscriber should judge freshness: the retained state arrives
+ * the instant it subscribes, so the button can be drawn immediately -
+ * but a retained message carries no timestamp, so on its own it cannot
+ * say whether that value is current or was left behind hours ago by a
+ * board that has since died. avail answers that using the broker's own
+ * disconnect detection, which only fires after the keepalive expires
+ * (~22 s with this library's 15 s default). hb is the independent
+ * check: it is deliberately NOT retained, so it can only ever arrive
+ * from a board that is alive right now. Hear nothing on hb for about
+ * two and a half intervals and treat the state as stale, whatever
+ * avail happens to say. The uptime payload also makes a crash-loop
+ * obvious - it keeps restarting from a small number.
  *
  * WiFi: tries WIFI_SSID_1 first, falls back to WIFI_SSID_2 if it can't
  * connect within WIFI_TIMEOUT_MS. This runs at boot AND is re-run from
@@ -80,6 +100,8 @@ const char *T_CMD   = "home/pump/cmd";
 const char *T_STATE = "home/pump/state";   // relay feedback, retained
 const char *T_LOG   = "home/pump/log";     // system log, not retained
 const char *T_AVAIL = "home/pump/avail";   // "online" / "offline" (LWT), retained
+const char *T_HB    = "home/pump/hb";      // proof of life, NOT retained
+const char *T_STATUS= "home/pump/status";  // reply to a STATUS command, NOT retained
 
 const int  PIN_RELAY        = 26;
 // Hardware property of this opto module - it triggers (energizes the
@@ -87,16 +109,23 @@ const int  PIN_RELAY        = 26;
 // a software choice - don't flip it without changing the module itself.
 const bool RELAY_ACTIVE_LOW = true;
 
-// --- feedback (bench test) ---
-// Internal pull-up idles PIN_FEEDBACK HIGH. Wiring GND through the relay's
-// spare contact pulls it LOW only while that contact is actually closed -
-// i.e. only while the relay has really actuated, not just while we've
-// commanded it to.
+// --- contactor state feedback (see header for the wiring) ---
+// The pull-up idles PIN_FEEDBACK HIGH. The contactor's aux contact 13/14
+// pulls it to GND only while the contactor has actually pulled in, so
+// this reports what the hardware did rather than what we asked for.
 const int  PIN_FEEDBACK        = 27;
 const bool FEEDBACK_ACTIVE_LOW = true;
 const uint32_t FB_DEBOUNCE_MS  = 150;
 
 const uint32_t RESTART_DELAY_MS = 6000;   // how long power stays cut during a RESTART
+
+// Heartbeat period. This is now a slow background sanity signal, not the
+// primary liveness check - avail answers that within ~22 s for free, and
+// STATUS answers it on demand and instantly. What the heartbeat still
+// earns its place for is the uptime payload: watch it reset to a small
+// number over and over and you are looking at a crash loop, which is
+// otherwise very hard to spot. At 60 s it costs a few MB a month.
+const uint32_t HEARTBEAT_MS = 60000;
 
 // --- offline log buffer (see header note) ---
 const size_t LOG_BUF_SIZE = 4096;   // ~ enough for 60-100 typical log lines
@@ -115,6 +144,8 @@ bool     fbStable   = false;   // debounced feedback reading
 bool     fbLastRaw  = false;
 uint32_t fbChangeMs = 0;
 
+uint32_t lastHeartbeatMs = 0;
+
 void relayWrite(bool on) {
   digitalWrite(PIN_RELAY, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
 }
@@ -122,6 +153,36 @@ void relayWrite(bool on) {
 void publishFeedback(bool on) {
   if (!mqtt.connected()) return;
   mqtt.publish(T_STATE, on ? "ON" : "OFF", true);   // retained
+}
+
+// Proof of life. Deliberately NOT retained: the broker keeps no copy, so
+// this message can only ever reach a subscriber from a board that is
+// alive at that moment. That is what lets the app decide for itself that
+// the data has gone stale, instead of waiting on the broker's keepalive
+// timeout. Payload is uptime in seconds.
+void publishHeartbeat() {
+  if (!mqtt.connected()) return;
+  char msg[16];
+  snprintf(msg, sizeof(msg), "%lu", (unsigned long)(millis() / 1000));
+  mqtt.publish(T_HB, msg);
+  lastHeartbeatMs = millis();
+}
+
+// Answers a STATUS command. NOT retained, for the same reason as the
+// heartbeat: a reply the broker could hand out later would prove nothing
+// about whether this board is alive now. Publish STATUS, hear nothing
+// back within a second or two, and the controller is offline.
+void publishStatus() {
+  if (!mqtt.connected()) return;
+  char buf[220];
+  snprintf(buf, sizeof(buf),
+    "{\"ssid\":\"%s\",\"rssi\":%d,\"ip\":\"%s\",\"uptime_s\":%lu,\"state\":\"%s\"}",
+    WiFi.SSID().c_str(),
+    (int)WiFi.RSSI(),
+    WiFi.localIP().toString().c_str(),
+    (unsigned long)(millis() / 1000),
+    fbStable ? "ON" : "OFF");
+  mqtt.publish(T_STATUS, buf);
 }
 
 // Appends one line to the ring buffer, dropping the oldest complete
@@ -253,6 +314,8 @@ void onMessage(char *topic, byte *payload, unsigned int len) {
     relayWrite(true);    // cut power first
     restartPending = true;
     restartAtMs = millis() + RESTART_DELAY_MS;
+  } else if (!strcmp(cmd, "STATUS")) {
+    publishStatus();
   }
 }
 
@@ -286,6 +349,7 @@ void setup() {
   net.setInsecure();            // no certificate check - see note
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(onMessage);
+  mqtt.setBufferSize(512);   // the STATUS reply does not fit the 256-byte default
 
   connectWiFiWithFallback();
   char msg[48];
@@ -310,11 +374,14 @@ void loop() {
       mqtt.publish(T_AVAIL, "online", true);
       mqtt.subscribe(T_CMD, 1);
       publishFeedback(fbStable);   // refresh the retained state right away
+      publishHeartbeat();          // and prove we're alive without the wait
       logLine("mqtt connected");
     }
   }
   mqtt.loop();
   flushLogToMqtt();
+
+  if (millis() - lastHeartbeatMs >= HEARTBEAT_MS) publishHeartbeat();
 
   readFeedback();
 

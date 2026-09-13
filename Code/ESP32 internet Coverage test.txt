@@ -1,0 +1,950 @@
+جنب راوتر JOY (JOY في الدور الثاني و Nabil في الدور الأول والموتور في الدور الأرضي تحت السلم)
+
+
+
+==============================================
+  ESP32 WiFi SITE SURVEY
+==============================================
+Chip     : ESP32-D0WD-V3 rev 301
+MAC      : 00:00:00:00:00:00
+Band     : 2.4 GHz only
+Targets  : Nabil, JOY
+----------------------------------------------
+RSSI reference:
+  >= -70 dBm  GOOD
+  -70..-80    MARGINAL
+  -80..-88    VERY WEAK
+  <  -88 dBm  DEAD
+==============================================
+
+
+----- ROUND 1  (uptime 1 s) -----
+Found 8 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -49  10  WPA/WPA2   JOY   <<< TARGET
+   -70   1  WPA/WPA2   Nabil   <<< TARGET
+   -72  13  WPA/WPA2   WE_150B78
+   -87   7  WPA/WPA2   Dareen
+   -91   7  WPA2       Orange-Koky
+   -91   9  WPA2       WE_F4497C
+   -93   3  WPA/WPA2   WE_326675
+   -93   3  WPA/WPA2   WE_291B13
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -70 | avg  -70 | best  -70 | worst  -70 | ch  1 | seen 1/1
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -49 | avg  -49 | best  -49 | worst  -49 | ch 10 | seen 1/1
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 2  (uptime 8 s) -----
+Found 10 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -50  10  WPA/WPA2   JOY   <<< TARGET
+   -72  13  WPA/WPA2   WE_150B78
+   -77   1  WPA/WPA2   Nabil   <<< TARGET
+   -89   7  WPA/WPA2   Dareen
+   -91   9  WPA2       WE_F4497C
+   -92   7  WPA2       Orange-Koky
+   -93   2  WPA/WPA2   WE_44DB60
+   -95   3  WPA/WPA2   WE_291B13
+   -96   3  WPA/WPA2   WE_326675
+   -96   4  WPA2       <hidden>
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -77 | avg  -73 | best  -70 | worst  -77 | ch  1 | seen 2/2
+                MARGINAL  -> works sometimes, will drop
+   JOY          last  -50 | avg  -49 | best  -49 | worst  -50 | ch 10 | seen 2/2
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 3  (uptime 16 s) -----
+Found 7 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -49  10  WPA/WPA2   JOY   <<< TARGET
+   -69   1  WPA/WPA2   Nabil   <<< TARGET
+   -74  13  WPA/WPA2   WE_150B78
+   -89   7  WPA/WPA2   Dareen
+   -90   7  WPA2       Orange-Koky
+   -94   3  WPA/WPA2   WE_291B13
+   -95   1  WPA/WPA2   Orange-connect
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -69 | avg  -72 | best  -69 | worst  -77 | ch  1 | seen 3/3
+                MARGINAL  -> works sometimes, will drop
+   JOY          last  -49 | avg  -49 | best  -49 | worst  -50 | ch 10 | seen 3/3
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 4  (uptime 23 s) -----
+Found 10 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -74  13  WPA/WPA2   WE_150B78
+   -87   7  WPA/WPA2   Dareen
+   -90   7  WPA2       Orange-Koky
+   -92   2  WPA/WPA2   WE_44DB60
+   -92   3  WPA/WPA2   WE_291B13
+   -92   9  WPA2       WE_F4497C
+   -94   1  WPA/WPA2   Orange-connect
+   -95   3  WPA/WPA2   WE_326675
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -71 | best  -68 | worst  -77 | ch  1 | seen 4/4
+                MARGINAL  -> works sometimes, will drop
+   JOY          last  -47 | avg  -48 | best  -47 | worst  -50 | ch 10 | seen 4/4
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 5  (uptime 31 s) -----
+Found 9 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -40  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -72  13  WPA/WPA2   WE_150B78
+   -89   7  WPA2       Orange-Koky
+   -89   7  WPA/WPA2   Dareen
+   -90   2  WPA/WPA2   WE_44DB60
+   -92   3  WPA/WPA2   WE_291B13
+   -93   1  WPA/WPA2   Orange-connect
+   -93   3  WPA/WPA2   WE_326675
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -70 | best  -68 | worst  -77 | ch  1 | seen 5/5
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -40 | avg  -47 | best  -40 | worst  -50 | ch 10 | seen 5/5
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 6  (uptime 38 s) -----
+Found 9 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -71  13  WPA/WPA2   WE_150B78
+   -86   3  WPA/WPA2   WE_291B13
+   -90   7  WPA/WPA2   Dareen
+   -90   7  WPA2       Orange-Koky
+   -92   9  WPA2       WE_F4497C
+   -93   1  WPA/WPA2   Orange-connect
+   -93   3  WPA/WPA2   WE_326675
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -70 | best  -68 | worst  -77 | ch  1 | seen 6/6
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -47 | best  -40 | worst  -50 | ch 10 | seen 6/6
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 7  (uptime 46 s) -----
+Found 6 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -46  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -73  13  WPA/WPA2   WE_150B78
+   -89   7  WPA2       Orange-Koky
+   -89   7  WPA/WPA2   Dareen
+   -91   9  WPA2       WE_F4497C
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 7/7
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -46 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 7/7
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 8  (uptime 53 s) -----
+Found 9 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -72  13  WPA/WPA2   WE_150B78
+   -88   7  WPA/WPA2   Dareen
+   -90   3  WPA/WPA2   WE_291B13
+   -91   3  WPA/WPA2   WE_326675
+   -92   2  WPA/WPA2   WE_44DB60
+   -92   9  WPA2       WE_F4497C
+   -95   1  WPA/WPA2   Orange-connect
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 8/8
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 8/8
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 9  (uptime 61 s) -----
+Found 8 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -46  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -73  13  WPA/WPA2   WE_150B78
+   -90   7  WPA/WPA2   Dareen
+   -90  10  WPA2       Orange-Koky
+   -91   2  WPA/WPA2   WE_44DB60
+   -92   9  WPA2       WE_F4497C
+   -94   1  WPA/WPA2   Orange-connect
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 9/9
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -46 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 9/9
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 10  (uptime 68 s) -----
+Found 9 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -69   1  WPA/WPA2   Nabil   <<< TARGET
+   -72  13  WPA/WPA2   WE_150B78
+   -87   7  WPA/WPA2   Dareen
+   -91   2  WPA/WPA2   WE_44DB60
+   -92  10  WPA2       Orange-Koky
+   -93   3  WPA/WPA2   WE_291B13
+   -94   1  WPA/WPA2   Orange-connect
+   -94   3  WPA/WPA2   WE_326675
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -69 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 10/10
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 10/10
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 11  (uptime 76 s) -----
+Found 10 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -69   1  WPA/WPA2   Nabil   <<< TARGET
+   -73  13  WPA/WPA2   WE_150B78
+   -88   7  WPA/WPA2   Dareen
+   -91   2  WPA/WPA2   WE_44DB60
+   -91   9  WPA2       WE_F4497C
+   -92   3  WPA/WPA2   WE_326675
+   -93  10  WPA2       Orange-Koky
+   -95   1  WPA/WPA2   Orange-connect
+   -95   3  WPA/WPA2   WE_291B13
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -69 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 11/11
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 11/11
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 12  (uptime 83 s) -----
+Found 10 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -48  10  WPA/WPA2   JOY   <<< TARGET
+   -69   1  WPA/WPA2   Nabil   <<< TARGET
+   -74  13  WPA/WPA2   WE_150B78
+   -90   7  WPA/WPA2   Dareen
+   -92   2  WPA/WPA2   WE_44DB60
+   -92   3  WPA/WPA2   WE_291B13
+   -92   3  WPA/WPA2   WE_326675
+   -92   9  WPA2       WE_F4497C
+   -92  10  WPA2       Orange-Koky
+   -95   1  WPA/WPA2   Orange-connect
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -69 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 12/12
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -48 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 12/12
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 13  (uptime 91 s) -----
+Found 8 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -70   1  WPA/WPA2   Nabil   <<< TARGET
+   -74  13  WPA/WPA2   WE_150B78
+   -90   2  WPA/WPA2   WE_44DB60
+   -91   7  WPA/WPA2   Dareen
+   -91  10  WPA2       Orange-Koky
+   -93   1  WPA/WPA2   Orange-connect
+   -94   9  WPA2       WE_F4497C
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -70 | avg  -69 | best  -68 | worst  -77 | ch  1 | seen 13/13
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 13/13
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 14  (uptime 98 s) -----
+Found 6 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -73  13  WPA/WPA2   WE_150B78
+   -83   1  WPA/WPA2   Nabil   <<< TARGET
+   -87   7  WPA/WPA2   Dareen
+   -91  10  WPA2       Orange-Koky
+   -95   1  WPA/WPA2   Orange-connect
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -83 | avg  -70 | best  -68 | worst  -83 | ch  1 | seen 14/14
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 14/14
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 15  (uptime 105 s) -----
+Found 11 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -69   1  WPA/WPA2   Nabil   <<< TARGET
+   -71  13  WPA/WPA2   WE_150B78
+   -87   3  WPA/WPA2   WE_291B13
+   -89   7  WPA/WPA2   Dareen
+   -91   9  WPA2       WE_F4497C
+   -93   2  WPA/WPA2   WE_44DB60
+   -94   3  WPA/WPA2   WE_326675
+   -94  10  WPA2       Orange-Koky
+   -95   1  WPA/WPA2   Orange-connect
+   -96   4  WPA2       <hidden>
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -69 | avg  -70 | best  -68 | worst  -83 | ch  1 | seen 15/15
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 15/15
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 16  (uptime 113 s) -----
+Found 11 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -40  10  WPA/WPA2   JOY   <<< TARGET
+   -70   1  WPA/WPA2   Nabil   <<< TARGET
+   -73  13  WPA/WPA2   WE_150B78
+   -87   7  WPA/WPA2   Dareen
+   -91   9  WPA2       WE_F4497C
+   -92   2  WPA/WPA2   WE_44DB60
+   -93   3  WPA/WPA2   WE_291B13
+   -93   4  WPA2       <hidden>
+   -93  10  WPA2       Orange-Koky
+   -94   1  WPA/WPA2   Orange-connect
+   -94   3  WPA/WPA2   WE_326675
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -70 | avg  -70 | best  -68 | worst  -83 | ch  1 | seen 16/16
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -40 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 16/16
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 17  (uptime 121 s) -----
+Found 9 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -47  10  WPA/WPA2   JOY   <<< TARGET
+   -68   1  WPA/WPA2   Nabil   <<< TARGET
+   -74  13  WPA/WPA2   WE_150B78
+   -90   7  WPA/WPA2   Dareen
+   -91   3  WPA/WPA2   WE_291B13
+   -91   9  WPA2       WE_F4497C
+   -93   3  WPA/WPA2   WE_326675
+   -93  10  WPA2       Orange-Koky
+   -96   1  WPA/WPA2   Orange-connect
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -68 | avg  -70 | best  -68 | worst  -83 | ch  1 | seen 17/17
+                GOOD      -> usable, MQTT should hold
+   JOY          last  -47 | avg  -46 | best  -40 | worst  -50 | ch 10 | seen 17/17
+                GOOD      -> usable, MQTT should hold
+
+----- ROUND 18  (uptime 129 s) -----
+
+
+
+
+
+
+نص السلم بين الدورين:
+
+
+
+==============================================
+  ESP32 WiFi SITE SURVEY
+==============================================
+Chip     : ESP32-D0WD-V3 rev 301
+MAC      : 00:00:00:00:00:00
+Band     : 2.4 GHz only
+Targets  : Nabil, JOY
+----------------------------------------------
+RSSI reference:
+  >= -70 dBm  GOOD
+  -70..-80    MARGINAL
+  -80..-88    VERY WEAK
+  <  -88 dBm  DEAD
+==============================================
+
+
+----- ROUND 1  (uptime 1 s) -----
+Found 1 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -87   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -87 | avg  -87 | best  -87 | worst  -87 | ch  1 | seen 1/1
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 1 rounds
+
+----- ROUND 2  (uptime 7 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -87   5  WPA/WPA2   Y?
+   -88   1  WPA/WPA2   Nabil   <<< TARGET
+   -96   8  WPA/WPA2   WE_150B78
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -88 | avg  -87 | best  -87 | worst  -88 | ch  1 | seen 2/2
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 2 rounds
+
+----- ROUND 3  (uptime 13 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -88   1  WPA/WPA2   Nabil   <<< TARGET
+   -92   8  WPA/WPA2   WE_150B78
+   -95   5  WPA/WPA2   Y?
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -88 | avg  -87 | best  -87 | worst  -88 | ch  1 | seen 3/3
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 3 rounds
+
+----- ROUND 4  (uptime 19 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -88   1  WPA/WPA2   Nabil   <<< TARGET
+   -94   5  WPA/WPA2   Y?
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -88 | avg  -87 | best  -87 | worst  -88 | ch  1 | seen 4/4
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 4 rounds
+
+----- ROUND 5  (uptime 25 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -89   1  WPA/WPA2   Nabil   <<< TARGET
+   -91   5  WPA/WPA2   Y?
+   -92   8  WPA/WPA2   WE_150B78
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -89 | avg  -88 | best  -87 | worst  -89 | ch  1 | seen 5/5
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 5 rounds
+
+----- ROUND 6  (uptime 31 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -89   1  WPA/WPA2   Nabil   <<< TARGET
+   -90   8  WPA/WPA2   WE_150B78
+   -95   5  WPA/WPA2   Y?
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -89 | avg  -88 | best  -87 | worst  -89 | ch  1 | seen 6/6
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 6 rounds
+
+----- ROUND 7  (uptime 38 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -87   5  WPA/WPA2   Y?
+   -89   8  WPA/WPA2   WE_150B78
+   -91   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -91 | avg  -88 | best  -87 | worst  -91 | ch  1 | seen 7/7
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 7 rounds
+
+----- ROUND 8  (uptime 44 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -90   1  WPA/WPA2   Nabil   <<< TARGET
+   -91   5  WPA/WPA2   Y?
+   -93   8  WPA/WPA2   WE_150B78
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -90 | avg  -88 | best  -87 | worst  -91 | ch  1 | seen 8/8
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 8 rounds
+
+----- ROUND 9  (uptime 50 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -85   5  WPA/WPA2   Y?
+   -87   1  WPA/WPA2   Nabil   <<< TARGET
+   -94   8  WPA/WPA2   WE_150B78
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -87 | avg  -88 | best  -87 | worst  -91 | ch  1 | seen 9/9
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 9 rounds
+
+----- ROUND 10  (uptime 56 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -89   1  WPA/WPA2   Nabil   <<< TARGET
+   -91   5  WPA/WPA2   Y?
+   -94   8  WPA/WPA2   WE_150B78
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -89 | avg  -88 | best  -87 | worst  -91 | ch  1 | seen 10/10
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 10 rounds
+
+----- ROUND 11  (uptime 62 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -88   1  WPA/WPA2   Nabil   <<< TARGET
+   -93   5  WPA/WPA2   Y?
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -88 | avg  -88 | best  -87 | worst  -91 | ch  1 | seen 11/11
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 11 rounds
+
+----- ROUND 12  (uptime 68 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -88   5  WPA/WPA2   Y?
+   -89   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -89 | avg  -88 | best  -87 | worst  -91 | ch  1 | seen 12/12
+                VERY WEAK -> unreliable, needs help
+   JOY          NEVER SEEN in 12 rounds
+
+----- ROUND 13  (uptime 74 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -92   1  WPA/WPA2   Nabil   <<< TARGET
+   -93   5  WPA/WPA2   Y?
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+باب مكان الموتور
+
+
+==============================================
+  ESP32 WiFi SITE SURVEY
+==============================================
+Chip     : ESP32-D0WD-V3 rev 301
+MAC      : 00:00:00:00:00:00
+Band     : 2.4 GHz only
+Targets  : Nabil, JOY
+----------------------------------------------
+RSSI reference:
+  >= -70 dBm  GOOD
+  -70..-80    MARGINAL
+  -80..-88    VERY WEAK
+  <  -88 dBm  DEAD
+==============================================
+
+
+----- ROUND 1  (uptime 1 s) -----
+Found 4 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -91   5  WPA/WPA2   Y?
+   -94   7  WPA/WPA2   Dareen
+   -94  13  WPA/WPA2   WE_150B78
+   -95   1  WPA2       <hidden>
+
+  TARGET SUMMARY (cumulative):
+   Nabil        NEVER SEEN in 1 rounds
+   JOY          NEVER SEEN in 1 rounds
+
+----- ROUND 2  (uptime 8 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -88   5  WPA/WPA2   Y?
+   -90   7  WPA/WPA2   Dareen
+   -91   6  WPA/WPA2   TP-LINK_2BB2C0
+
+  TARGET SUMMARY (cumulative):
+   Nabil        NEVER SEEN in 2 rounds
+   JOY          NEVER SEEN in 2 rounds
+
+----- ROUND 3  (uptime 15 s) -----
+Found 5 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -92   1  WPA2       <hidden>
+   -92   6  WPA/WPA2   TP-LINK_2BB2C0
+   -92   7  WPA/WPA2   Dareen
+   -93   1  WPA/WPA2   Nabil   <<< TARGET
+   -93   5  WPA/WPA2   Y?
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 1/3
+                DEAD      -> do not rely on WiFi here
+   JOY          NEVER SEEN in 3 rounds
+
+----- ROUND 4  (uptime 22 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -89   5  WPA/WPA2   Y?
+   -91   6  WPA/WPA2   TP-LINK_2BB2C0
+   -92   1  WPA2       <hidden>
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 1/4
+                DEAD      -> do not rely on WiFi here
+   JOY          NEVER SEEN in 4 rounds
+
+----- ROUND 5  (uptime 29 s) -----
+Found 4 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -90   7  WPA/WPA2   Dareen
+   -93   6  WPA/WPA2   TP-LINK_2BB2C0
+   -94   5  WPA/WPA2   Y?
+   -94  13  WPA/WPA2   WE_150B78
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 1/5
+                DEAD      -> do not rely on WiFi here
+   JOY          NEVER SEEN in 5 rounds
+
+----- ROUND 6  (uptime 36 s) -----
+Found 7 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -90   7  WPA/WPA2   Dareen
+   -91   6  WPA/WPA2   TP-LINK_2BB2C0
+   -95  13  WPA/WPA2   WE_150B78
+   -96   1  WPA2       <hidden>
+   -97   3  WPA/WPA2   WE_291B13
+   -97   5  WPA/WPA2   Y?
+   -98  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 1/6
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -98 | avg  -98 | best  -98 | worst  -98 | ch 10 | seen 1/6
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 7  (uptime 44 s) -----
+Found 1 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -96   7  WPA/WPA2   Dareen
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 1/7
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -98 | avg  -98 | best  -98 | worst  -98 | ch 10 | seen 1/7
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 8  (uptime 50 s) -----
+Found 5 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -89   5  WPA/WPA2   Y?
+   -90   1  WPA2       <hidden>
+   -90   7  WPA/WPA2   Dareen
+   -92   6  WPA/WPA2   TP-LINK_2BB2C0
+   -93   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 2/8
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -98 | avg  -98 | best  -98 | worst  -98 | ch 10 | seen 1/8
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 9  (uptime 58 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -88   5  WPA/WPA2   Y?
+   -91   6  WPA/WPA2   TP-LINK_2BB2C0
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -93 | best  -93 | worst  -93 | ch  1 | seen 2/9
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -98 | avg  -98 | best  -98 | worst  -98 | ch 10 | seen 1/9
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 10  (uptime 64 s) -----
+
+
+
+
+
+
+
+
+
+
+ المكان الفعلي اللي الصندوق هيتركب فيه (عند الموتور نفسه)
+
+
+
+==============================================
+  ESP32 WiFi SITE SURVEY
+==============================================
+Chip     : ESP32-D0WD-V3 rev 301
+MAC      : 00:00:00:00:00:00
+Band     : 2.4 GHz only
+Targets  : Nabil, JOY
+----------------------------------------------
+RSSI reference:
+  >= -70 dBm  GOOD
+  -70..-80    MARGINAL
+  -80..-88    VERY WEAK
+  <  -88 dBm  DEAD
+==============================================
+
+
+----- ROUND 1  (uptime 1 s) -----
+Found 1 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -71   5  WPA/WPA2   Y?
+
+  TARGET SUMMARY (cumulative):
+   Nabil        NEVER SEEN in 1 rounds
+   JOY          NEVER SEEN in 1 rounds
+
+----- ROUND 2  (uptime 7 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -71   5  WPA/WPA2   Y?
+   -96  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        NEVER SEEN in 2 rounds
+   JOY          last  -96 | avg  -96 | best  -96 | worst  -96 | ch 10 | seen 1/2
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 3  (uptime 14 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -92   1  WPA/WPA2   Nabil   <<< TARGET
+   -93  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -92 | avg  -92 | best  -92 | worst  -92 | ch  1 | seen 1/3
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -93 | avg  -94 | best  -93 | worst  -96 | ch 10 | seen 2/3
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 4  (uptime 21 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -71   5  WPA/WPA2   Y?
+   -91   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -91 | avg  -91 | best  -91 | worst  -92 | ch  1 | seen 2/4
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -93 | avg  -94 | best  -93 | worst  -96 | ch 10 | seen 2/4
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 5  (uptime 28 s) -----
+Found 1 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -96  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -91 | avg  -91 | best  -91 | worst  -92 | ch  1 | seen 2/5
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -96 | avg  -95 | best  -93 | worst  -96 | ch 10 | seen 3/5
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 6  (uptime 35 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -71   5  WPA/WPA2   Y?
+   -95  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -91 | avg  -91 | best  -91 | worst  -92 | ch  1 | seen 2/6
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -95 | avg  -95 | best  -93 | worst  -96 | ch 10 | seen 4/6
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 7  (uptime 42 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -91   3  WPA/WPA2   WE_291B13
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -91 | avg  -91 | best  -91 | worst  -92 | ch  1 | seen 2/7
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -95 | avg  -95 | best  -93 | worst  -96 | ch 10 | seen 4/7
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 8  (uptime 48 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -94  10  WPA/WPA2   JOY   <<< TARGET
+   -96   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -96 | avg  -93 | best  -91 | worst  -96 | ch  1 | seen 3/8
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -94 | avg  -94 | best  -93 | worst  -96 | ch 10 | seen 5/8
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 9  (uptime 55 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -90   1  WPA/WPA2   Nabil   <<< TARGET
+   -97  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -90 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 4/9
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -97 | avg  -95 | best  -93 | worst  -97 | ch 10 | seen 6/9
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 10  (uptime 62 s) -----
+                                                                C        SSID
+  ----  --  ---------  ----------------------
+   -68   5  WPA/WPA2   Y?
+   -92   3  WPA/WPA2   WE_291B13
+   -94   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -94 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 5/10
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -97 | avg  -95 | best  -93 | worst  -97 | ch 10 | seen 6/10
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 11  (uptime 69 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -93   1  WPA/WPA2   Nabil   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 6/11
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -97 | avg  -95 | best  -93 | worst  -97 | ch 10 | seen 6/11
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 12  (uptime 76 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -73   5  WPA/WPA2   Y?
+   -91   1  WPA/WPA2   Nabil   <<< TARGET
+   -95  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -91 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 7/12
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -95 | avg  -95 | best  -93 | worst  -97 | ch 10 | seen 7/12
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 13  (uptime 83 s) -----
+Found 4 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -91   3  WPA/WPA2   WE_291B13
+   -93   1  WPA/WPA2   Nabil   <<< TARGET
+   -94  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 8/13
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -94 | avg  -95 | best  -93 | worst  -97 | ch 10 | seen 8/13
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 14  (uptime 91 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -67   5  WPA/WPA2   Y?
+   -93   1  WPA/WPA2   Nabil   <<< TARGET
+   -93  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -93 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 9/14
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -93 | avg  -94 | best  -93 | worst  -97 | ch 10 | seen 9/14
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 15  (uptime 98 s) -----
+Found 3 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -72   5  WPA/WPA2   Y?
+   -94   1  WPA/WPA2   Nabil   <<< TARGET
+   -96  10  WPA/WPA2   JOY   <<< TARGET
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -94 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 10/15
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -96 | avg  -94 | best  -93 | worst  -97 | ch 10 | seen 10/15
+                DEAD      -> do not rely on WiFi here
+
+----- ROUND 16  (uptime 105 s) -----
+Found 2 networks:
+  RSSI  CH  ENC        SSID
+  ----  --  ---------  ----------------------
+   -75   5  WPA/WPA2   Y?
+   -90   3  WPA/WPA2   WE_291B13
+
+  TARGET SUMMARY (cumulative):
+   Nabil        last  -94 | avg  -92 | best  -90 | worst  -96 | ch  1 | seen 10/16
+                DEAD      -> do not rely on WiFi here
+   JOY          last  -96 | avg  -94 | best  -93 | worst  -97 | ch 10 | seen 10/16
+                DEAD      -> do not rely on WiFi here
+
+
+

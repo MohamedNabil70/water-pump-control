@@ -4,10 +4,12 @@ ESP32-based IoT retrofit that adds remote **ON / OFF / RESTART** control to an e
 residential water pump over MQTT, **without replacing the pump's existing automatic
 controller**.
 
-> **Status as of 2026-09-12: BLOCKED on network connectivity at the pump location.**
-> The electrical design and the control/fail-safe design are settled. The pump site has
-> no usable WiFi coverage, so the transport layer is under redesign.
-> See [Open Problems](#6-open-problems).
+> **Status as of 2026-09-13: transport layer RESOLVED. Remaining work is electrical.**
+> Option A is implemented: a ground-floor access point is installed and the ESP32 holds an
+> MQTT-over-TLS session with HiveMQ Cloud from the enclosure position at **-58 dBm**,
+> verified end to end with a command round trip. The open items are now mechanical and
+> electrical — DMAX topology, contactor coil voltage, and the bench test of the control
+> chain, which has still never been run. See [Open Problems](#6-open-problems).
 
 ---
 
@@ -197,7 +199,7 @@ network outage, it does not survive a power loss.
 | RC snubber | across the switched inductive load | PENDING — spec not finalised |
 | Fuse | protecting the control branch | PENDING — rating and location not fixed |
 | Enclosure | not specified | PENDING |
-| Network bridge | not selected | **BLOCKED** |
+| Network bridge | Huawei HG633-12 as ground-floor AP, SSID `Damasy` | DECIDED — installed and verified |
 
 ### Superseded selections
 
@@ -220,85 +222,91 @@ rated coil voltage. Shorting A1 to A2 is not a method of operating the contactor
 
 ## 6. Open Problems
 
-### 6.1 No WiFi coverage at the pump location — BLOCKER
-
-**Discovered:** 2026-09-11
-
-**Site layout**
-
-```text
-2nd floor   JOY router
-1st floor   Nabil router
-Ground      pump, under the stairs, enclosed space
-```
-
-**Symptom.** The ESP32 cannot associate with either house network at the pump. Both
-networks are visible on a phone at that location but the ESP32 radio has roughly
-6–10 dB less receive sensitivity than a phone, and the margin is not there.
-
-**Measured.** Both networks sit around **-92 dBm** at the intended enclosure position,
-with the scan itself failing roughly 37% of the time. A stable ESP32 MQTT session needs
-about **-75 dBm or better**; -80 dBm is the practical floor. The deficit is 12–17 dB,
-i.e. the received power is 16 to 50 times below what is needed. This is not a margin that
-an antenna upgrade can close.
-
-**Key finding — vertical asymmetry.** The Nabil router is on the 1st floor.
-
-- One floor **up** (at the JOY router): **-70 dBm**, detected 17/17
-- One floor **down** (at the pump): **-92 dBm**, detected 10/16
-
-A 22 dB asymmetry over the same one-floor distance, in opposite directions. Plausible
-mechanism: the upward path runs through the open stairwell void, while the downward path
-crosses a reinforced concrete slab and then enters an enclosed under-stair space. Rebar
-in the slab acts as a reflective mesh, and the enclosed space removes any indirect path.
-
-**Why this matters for the fix.** Nabil is already on the 1st floor and delivers -92 dBm
-at the pump. Therefore *any* access point placed on the 1st floor will perform similarly.
-Best case, positioned at the stairwell door, optimistically -80 dBm — still below the
-operating threshold.
-
-> **Conclusion: the access point must be on the ground floor. No 1st-floor placement and
-> no antenna change solves this.**
-
-**Counter-evidence that the site itself is fine.** An unidentified neighbouring network
-(rendered as `Y?` in the scan output, likely a non-ASCII SSID) measures **-71 dBm** at the
-enclosure position and is *not visible at all* from the 2nd floor. Its source is therefore
-at ground level, roughly one wall away. The pump location is not an RF dead zone — it
-simply has no transmitter near it. A ground-floor AP should give good coverage. The
-network is unusable directly since its owner is unknown.
-
-**Ruled out**
-
-| Approach | Why rejected |
-|---|---|
-| External antenna on the ESP32 | +3 to 5 dB. Deficit is 12–17 dB. |
-| Targeting JOY instead of Nabil | JOY is worse: -94 dBm, invisible mid-stairs. |
-| WiFi repeater mid-stairs | Repeater input there is -88 dBm. A repeater rebroadcasts noise along with signal; it needs -70 dBm or better at its input. |
-| Any AP on the 1st floor | See vertical asymmetry above. |
-
-### 6.2 Mains topology not established — HIGH
+### 6.1 Mains topology not established — HIGH
 
 The exact point at which the contactor is inserted into the existing DMAX/pump circuit
 has not been determined from the physical installation. Must be resolved from the actual
 DMAX terminals, not from assumptions about generic pump controllers. Risk if guessed: the
 DMAX gets electrically bypassed or behaves unexpectedly.
 
-### 6.3 Contactor coil voltage not confirmed — HIGH
+### 6.2 Contactor coil voltage not confirmed — HIGH
 
 The coil supply voltage of the purchased LC1E0910 and the method by which the relay
 module drives it must be verified before wiring. This determines whether the control run
 is mains-level or SELV, which in turn affects enclosure design and any long cable run.
 
-### 6.4 Protection components not specified — MEDIUM
+### 6.3 Protection components not specified — MEDIUM
 
 RC snubber model and connection point, fuse rating and location, protective earth
 implementation, wire gauges, terminal blocks.
+
+### 6.4 Access point disturbs the rest of the LAN — LOW
+
+**Discovered:** 2026-09-13. **Does not affect the pump link.**
+
+While the LAN cable from Nabil is connected to the HG633, Windows and Android clients on
+**both** house networks display "Action needed / Connected without internet" and Windows
+auto-opens a browser. Unplugging that one cable clears it instantly on every client.
+
+The warning is false. Measured while it was showing: `ping 8.8.8.8` returned **0% loss at
+44 ms**, `ping 192.168.100.1` 0% loss, DHCP lease, gateway and DNS all correct and served
+by Nabil. The OS connectivity probe (`msftconnecttest.com`) fails while real traffic flows,
+so TCP survives — it retries — and the short-timeout probe does not.
+
+**The ESP32 is unaffected** and holds its MQTT session throughout, so this is cosmetic for
+this project. Accepted as a known defect rather than fixed; see the diagnosis record below
+for why, and [section 8](#8-options-under-evaluation) for the replacement option.
 
 ### Resolved
 
 | Problem | Resolution |
 |---|---|
 | Fail-safe behaviour undefined | Resolved 2026-09-12. NC-contact wiring plus a 10 kΩ hardware pull-up, implemented in `pump_minimal`. See [section 3](#3-control-design-and-fail-safe-behaviour). Bench verification still outstanding. |
+| No WiFi coverage at the pump location (was the project BLOCKER) | Resolved 2026-09-13 by Option A. A spare Huawei HG633-12 was installed as a ground-floor access point (`Damasy`, ch 11, cabled LAN-to-LAN2 from the Nabil router). Signal at the enclosure position went from **-92 dBm, 10/16 detection** to **-58 dBm**, and the ESP32 now opens and holds MQTT over TLS on port 8883. See [section 8](#8-options-under-evaluation). |
+| ESP32 would not associate with the new AP | Resolved 2026-09-13. **A typo, not a network fault.** `secrets.h` held the `Damasy` PSK with its leading `#` missing (10 chars instead of 11), so the 4-way handshake failed, `WiFi.status()` never reached `WL_CONNECTED`, and the firmware's 15 s timeout handed the connection to the backup SSID every time. The symptom looked exactly like an AP rejecting the client. See the lesson in the diagnosis record below. |
+
+### Network diagnosis record — 2026-09-13
+
+Kept so none of this is repeated. The investigation started from a captive-portal
+hypothesis, which was wrong, and cost several rounds before the evidence overturned it.
+
+**Ruled out, with the evidence that ruled it out**
+
+| Hypothesis | Evidence against |
+|---|---|
+| Captive portal / HTTP interception on the AP | The ESP32 never reached layer 3 at all — the serial log showed a 15 s association timeout, not a failed TLS session. A portal operates above the layer that was failing. |
+| Weak signal at the pump | -58 dBm measured by the ESP32 itself at the enclosure position |
+| Rogue DHCP server on the AP | With the cable out and a laptop on the AP's own WiFi, no lease was offered at all — no DHCP server line, no APIPA address |
+| Duplicate IP / gateway address conflict | `arp -a` showed exactly one MAC for `192.168.100.1` while the fault was present |
+| IPv6 RA with an RDNSS option from the AP | `netsh interface ipv6 show neighbors` resolved `fe80::1` to the **Nabil** router's MAC, not the AP's |
+| `fe80::1` being the cause at all | It is present and first in the DNS list in the **healthy** state too. Every layer-3 parameter is byte-identical between the working and broken states |
+| The AP's IPv6-enabled WAN profile | Setting `INTERNET_TR069_ETH` to IPv4-only changed nothing |
+
+**What that leaves.** Every layer-3 setting is identical in both states, and a client on
+the Nabil network does not route through the HG633 at all, yet is still affected. That
+points to layer-2 behaviour of the HG633 — frame echo, MAC-table flapping, or broadcast
+flooding from its always-online PPPoE dialer, which carries the placeholder account
+`00000@tedata.net.eg` and can never authenticate. **This is unverified**; confirming it
+needs port monitoring or a packet capture that was judged not worth the time, since the
+pump link is unaffected.
+
+**Why it was not fixed in the device.** The firmware is TEData-locked: `Maintain → Remote
+Management` is greyed out, so CWMP cannot be disabled, and the TR-069 log shows a
+`parameter change` from `hdm.tedata.net.eg` every 30 minutes — the ISP can revert any
+setting. A layer-2 behaviour is not a settings-page item in any case. Replacing the HG633
+with a plain unmanaged router or AP is the remaining option.
+
+**Changes left applied to the HG633**
+
+- `INTERNET_TR069_ETH` → `IP protocol version` set to IPv4 only (correct for an AP)
+- `INTERNET_TR069_ETH` → `Enable connection` unchecked, stopping the permanent failing
+  PPPoE dial loop and cutting the device's path to the TEData ACS
+
+**Lesson recorded.** Before investigating any network for a device that will not connect,
+read the serial log and establish **which layer is failing**. An association timeout and a
+broker timeout look identical from the outside and lead to completely different
+investigations. Diffing the credentials in `secrets.h` against the working copy in
+`wifi_survey.ino` would have found this in one minute.
 
 ---
 
@@ -331,19 +339,36 @@ from the 2nd floor.
 networks. Nabil on ch 1, JOY on ch 10. **Channel 11 is clear** and is the recommended
 channel for any new AP.
 
+### Post-installation measurement — 2026-09-13
+
+After the ground-floor AP was installed, measured by the ESP32 itself at the enclosure
+position and reported on `home/pump/status`:
+
+| Network | Before (2026-09-11) | After (2026-09-13) |
+|---|---|---|
+| Nabil (1F) | -92 dBm, 10/16 detection | unchanged |
+| **Damasy (GF AP)** | did not exist | **-58 dBm, MQTT session holds** |
+
+That is a 34 dB improvement and roughly 13 dB of margin above the -70 dBm threshold. It
+confirms the vertical-asymmetry analysis: the problem was transmitter placement, not the
+site.
+
 **Not yet measured**
 
 - Reading directly at the Nabil router (1F) — no baseline for the downward path
-- Reading with the ESP32 inside a closed enclosure — deferred, the figure is already
-  below threshold before enclosure loss is applied
+- Reading with the ESP32 inside a **closed** enclosure on the Damasy network. The -58 dBm
+  figure has margin for the expected enclosure loss, but it has not been measured.
+- Long-run stability: no multi-hour count of `home/pump/hb` gaps or `uptime_s` resets has
+  been taken, so "holds the session" is verified over minutes, not days
 
 ---
 
 ## 8. Options Under Evaluation
 
-Ranked by current assessment. None committed.
+Option A was committed and implemented on 2026-09-13. B, C and D are retained as recorded
+alternatives, and B remains the planned Phase 2.
 
-### Option A — LAN cable to a ground-floor access point ★ current favourite
+### Option A — LAN cable to a ground-floor access point ★ IMPLEMENTED 2026-09-13
 
 Run Cat5e from the 1st floor down to the ground floor, terminate in a router configured
 as an access point on channel 11.
@@ -352,8 +377,20 @@ as an access point on channel 11.
 - **Cost:** cable plus a spare router
 - **Precedent:** a LAN cable is already run between the 1st and 2nd floors for extender
   duty, so this is a known-feasible operation, just in the other direction
-- **Dependency:** requires mains power at the ground-floor AP location
+- **Dependency:** requires mains power at the ground-floor AP location — **confirmed
+  available; the AP is installed and powered in the ground-floor reception**
 - **Architecture impact:** none — HiveMQ, app, and firmware unchanged
+
+**As built.** Huawei HG633-12 (firmware `V100R001C105B022 TEDATA`), SSID `Damasy`,
+channel 11, LAN IP `192.168.100.200`, DHCP and IPv6 services off, cabled from a LAN port
+on the Nabil router to LAN2. Clients bridge onto Nabil's `192.168.100.0/24` and take
+their leases from Nabil at `192.168.100.1`.
+
+**Known defect.** This particular router disturbs the rest of the LAN while cabled in —
+see [6.4](#64-access-point-disturbs-the-rest-of-the-lan--low). It does not affect the pump
+link. Replacing it with a plain unmanaged router or access point is the open follow-up,
+and is the preferred fix rather than further configuration work, because the HG633's
+firmware is ISP-locked.
 
 ### Option B — LoRa link, 433 MHz
 
@@ -398,10 +435,13 @@ Uses existing mains wiring as the data path.
 | Main components | Purchased |
 | Mobile app front end | In development (Claude Design) |
 | MQTT broker | HiveMQ Cloud cluster provisioned |
-| Firmware — connectivity | Written, **cannot connect at site** |
+| Transport layer | **Resolved** — ground-floor AP installed, Option A as built |
+| Firmware — connectivity | Written and **verified at the pump position**, -58 dBm |
+| MQTT over TLS on 8883 | **Verified end to end** — command sent, status returned |
 | Firmware — ON/OFF/RESTART logic | Written in `pump_minimal` |
 | Fail-safe behaviour | Designed and implemented — not bench tested |
 | Relay feedback path | Implemented — not bench tested |
+| Long-run link stability | Not measured beyond a few minutes |
 | Mains wiring topology | Not frozen |
 | Bench test of control chain | Not performed |
 | Mains integration | Not started |
@@ -428,6 +468,11 @@ Uses existing mains wiring as the data path.
 | 2026-09-12 | Antenna upgrade, JOY targeting, stairwell repeater, 1F AP all ruled out | DECIDED |
 | 2026-09-12 | Ground-floor AP established as a hard requirement for any WiFi solution | DECIDED |
 | 2026-09-12 | `README.md` and `README2.md` merged into this single reference | — |
+| 2026-09-13 | Option A committed and built: Huawei HG633-12 installed as ground-floor AP `Damasy`, ch 11, `192.168.100.200`, cabled LAN-to-LAN2 from Nabil | DECIDED |
+| 2026-09-13 | ESP32 association failure traced to a missing leading `#` in the `Damasy` PSK in `secrets.h`, not to any router setting | FINDING |
+| 2026-09-13 | MQTT over TLS on 8883 verified from the enclosure position at -58 dBm with a full command round trip; transport layer closed | DECIDED |
+| 2026-09-13 | Captive portal, rogue DHCP, IP conflict and IPv6 RDNSS all ruled out by measurement as causes of the LAN-wide "no internet" indicator | DECIDED |
+| 2026-09-13 | HG633 LAN disturbance accepted as a known low-severity defect; replacing the router preferred over further configuration, since the firmware is ISP-locked | DECIDED |
 
 ---
 
@@ -494,34 +539,56 @@ inductive motor load. The following are requirements, not suggestions.
 
 ## 14. Next Steps
 
-### Immediate — validate before spending
+The transport layer is closed. Everything below is electrical and mechanical.
 
-1. Determine whether mains power is available at the candidate ground-floor AP location,
-   and which meter it is on. This single answer decides between Option A and Option B.
-2. Run the hotspot test: place a phone hotspot (2.4 GHz, SSID `test24`) at the candidate
-   AP location, set `TARGETS` in the survey sketch to `test24`, and measure 8 rounds at
-   the enclosure position.
-   **Pass criterion: avg better than -70 dBm and 8/8 detection.**
-   This converts the Option A plan from expectation to measurement before any cable is
-   bought or run.
+### Immediate — the highest-risk untested item
 
-### After the transport layer is resolved
+1. **Bench test ESP32 → relay → contactor with no pump connected.** The fail-safe design is
+   written and implemented but has **never been run once**. Include the GPIO 27 feedback
+   loopback and, specifically, the 10 kΩ pull-up behaviour through a full ESP32 reset — the
+   whole fail-safe guarantee during boot rests on that resistor.
+2. **Verify LC1E0910 coil voltage**, contact rating, load category and terminal
+   identification. This decides whether the control run is mains-level or SELV, which
+   drives the enclosure design.
+3. **Document the existing DMAX installation** from the physical hardware: input, output,
+   pump connection, L/N/PE, existing protection, current behaviour. Tagged `UNKNOWN` —
+   must not be guessed.
 
-3. Document the existing DMAX installation: input, output, pump connection, L/N/PE,
-   existing protection, current behaviour
-4. Verify LC1E0910 coil voltage, contact rating, load category, terminal identification
-5. Verify relay module input requirements against ESP32 GPIO, and output rating against
+### After those three
+
+4. Verify relay module input requirements against ESP32 GPIO, and output rating against
    the coil
-6. Bench test ESP32 → relay → contactor with no pump connected, including the GPIO 27
-   feedback loopback and the 10 kΩ pull-up behaviour through a full ESP32 reset
-7. Specify protection: fuse, snubber, earthing, enclosure, wire gauges
-8. Mains integration
-9. Functional test matrix: local ON/OFF, remote ON/OFF, restart, ESP32 reboot, WiFi loss,
+5. Specify protection: fuse, snubber, earthing, enclosure, wire gauges
+6. Mains integration
+7. Functional test matrix: local ON/OFF, remote ON/OFF, restart, ESP32 reboot, WiFi loss,
    MQTT loss, power restoration, DMAX automatic operation, repeated motor starts
+
+### Network follow-ups — optional, not blocking
+
+8. Measure long-run link stability: let the ESP32 run and count gaps in `home/pump/hb` and
+   resets of `uptime_s`. Converts "holds the session" from minutes to a real number.
+9. Replace the HG633 with a plain router or access point, which is expected to clear
+   [6.4](#64-access-point-disturbs-the-rest-of-the-lan--low)
+10. Measure RSSI with the ESP32 inside the closed enclosure on `Damasy`
 
 ---
 
 ## 15. Changelog
+
+### 2026-09-13
+
+- **Project unblocked.** Option A built and verified: Huawei HG633-12 installed as the
+  ground-floor access point `Damasy`; ESP32 measures -58 dBm at the enclosure position and
+  holds an MQTT-over-TLS session on port 8883 with HiveMQ Cloud, confirmed by a command
+  round trip on `home/pump/cmd` → `home/pump/status`
+- Root cause of the ESP32 association failure identified as a missing leading `#` in the
+  `Damasy` PSK in `secrets.h` — a typo, not a router setting; corrected
+- Status changed from `BLOCKED` to electrical/mechanical work; section 6.1 (no WiFi
+  coverage) moved to Resolved and the remaining problems renumbered
+- Added section 6.4 for the HG633 LAN disturbance, and a network diagnosis record listing
+  every hypothesis ruled out with the evidence that ruled it out, so it is not repeated
+- Added the post-installation RSSI measurement to section 7
+- Next Steps reordered around the bench test of the control chain, which has never been run
 
 ### 2026-09-12
 
