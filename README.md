@@ -101,11 +101,53 @@ remote layer is additive, never load-bearing for basic operation.
 
 | Topic | Direction | Payload | Retained |
 |---|---|---|---|
-| `home/pump/cmd` | in | `ON` \| `OFF` \| `RESTART` | no |
-| `home/pump/state` | out | `ON` \| `OFF` (real relay feedback) | yes |
+| `home/pump/cmd` | in | `CMD` or `CMD:user` — see below | no |
+| `home/pump/state` | out | `ON` \| `OFF` — the real contactor reading | yes |
+| `home/pump/avail` | out | `online` \| `offline` — published by the broker via MQTT's last will | yes |
+| `home/pump/hb` | out | uptime in seconds, every `HEARTBEAT_MS` (60 s) | no |
+| `home/pump/status` | out | JSON reply to a `STATUS` command | no |
 | `home/pump/log` | out | one system-log line per message | no |
 
-`RESTART` cuts power, waits `RESTART_DELAY_MS` (6 s), then restores it.
+**Commands:** `ON`, `OFF`, `RESTART`, `STATUS`.
+
+`RESTART` cuts power, waits `RESTART_DELAY_MS` (6 s), then restores it. A second
+`RESTART` arriving while one is already running is **refused by the firmware** and logged.
+This is enforced on the board rather than in the UI: a greyed-out button is a convention
+that any other MQTT client ignores, and without the guard a second `RESTART` would simply
+push the timer out by another 6 s, so repeated presses could hold the pump off
+indefinitely. A UI lock is still worth having on top — the app reads `restarting` from a
+`STATUS` reply so that an app opened mid-cycle knows to lock its button.
+
+**Command payload format.** The payload is either a bare command (`ON`) or a command with
+the person who issued it (`ON:Mohamed`). The name is optional, so a plain MQTT client can
+still drive the pump by hand during testing, and when present it is recorded in the log
+and returned as `last_user` in the next `STATUS` reply. Both halves travel in **one**
+message deliberately: sending the actor on a separate topic could not be correlated
+reliably once two people act at nearly the same moment.
+
+**`STATUS` reply shape:**
+
+```json
+{"ssid":"Damasy","rssi":-58,"ip":"192.168.100.57","uptime_s":3600,
+ "state":"ON","restarting":false,"last_user":"Mohamed","cpu_mhz":240}
+```
+
+### Judging whether the reported state is current
+
+A retained message carries no timestamp, so `home/pump/state` on its own cannot say
+whether it is current or was left behind hours ago by a board that has since died. Three
+mechanisms answer that, in increasing order of confidence:
+
+- **`avail`** — the broker's own view, free and retained, but it only fires once the MQTT
+  keepalive expires (~22 s with PubSubClient's 15 s default). It can also show a brief
+  `offline` → `online` flap on a fast reconnect, because a new session taking over the
+  same client ID causes the broker to publish the old session's will.
+- **`hb`** — deliberately **not** retained, so it can only ever arrive from a board that
+  is alive at that moment. Hear nothing for ~2.5 intervals and treat the state as stale
+  whatever `avail` says. The uptime payload also makes a crash loop obvious.
+- **`STATUS`** — on demand and immediate. Publish it, hear nothing back within a second
+  or two, and the controller is not there. This is what the app should use on open and
+  behind a "check controller" button.
 
 ---
 
@@ -136,17 +178,35 @@ Because `PIN_RELAY` floats during the ESP32's own boot/reset, before any firmwar
 de-energised, power flowing) during that window too. Without it the fail-safe guarantee
 only holds once `setup()` has executed.
 
-### Relay feedback
+### State feedback from the contactor
 
-`GPIO 27` is configured as `INPUT_PULLUP` and reads back a spare relay contact, so the
-firmware can confirm the relay physically actuated rather than merely trusting the
-command it sent. The reading is debounced (150 ms) before it is reported on
+`GPIO 27` reads the contactor's **NO auxiliary contact — terminals 13/14** on the
+LC1E0910, so what gets reported is what the contactor actually did, not merely what the
+firmware asked for. The reading is debounced (150 ms) before it is published retained on
 `home/pump/state`.
 
-Bench-test wiring: `ESP32 GND → relay COM`, `relay NO → GPIO 27`. This loop carries only
-the ESP32's own ground through a dry contact — no coil voltage or mains — so it needs no
-isolation. Note that a 1-channel relay has a single COM terminal, so the test loopback
-and the production COM/NC wiring **cannot be connected at the same time**.
+Wiring: `ESP32 GND → terminal 13`, `terminal 14 → GPIO 27`.
+
+An auxiliary contact is a **dry contact** — it carries no voltage of its own, only
+whatever is fed into terminal 13. Feeding it the ESP32's own ground keeps the whole loop
+at 3.3 V and means no isolation is needed, **provided 13/14 are wired to nothing else**.
+The terminals still sit on a body carrying 220 VAC, so the pair is routed and insulated
+as mains-adjacent wiring.
+
+**Use an external 1 kΩ pull-up from GPIO 27 to 3.3 V**, not the internal one. Schneider
+rates this auxiliary contact for a minimum switching capacity of **17 V / 5 mA**; the
+ESP32's ~45 kΩ internal pull-up passes only ~70 µA, far too little to break through the
+oxide film that forms on the contact surface, which shows up as intermittent false
+readings. 1 kΩ gives ~3.3 mA.
+
+Until 13/14 are physically wired, GPIO 27 sits at the pull-up and reports `OFF`
+permanently — expected, not a fault.
+
+*Superseded:* an earlier bench-test loopback read a spare contact on the relay module
+itself (`ESP32 GND → relay COM`, `relay NO → GPIO 27`). That verified only that the relay
+clicked, and a 1-channel relay has a single COM terminal, so it cannot coexist with the
+production COM/NC wiring. It remains usable for testing the control chain **before** the
+contactor is in circuit.
 
 ### Still to be specified
 
@@ -174,6 +234,46 @@ before WiFi/MQTT are available (for example `failed to connect to internet`) are
 **4 KB RAM ring buffer** and flushed in order the moment MQTT connects. If the buffer
 fills first, the oldest lines are dropped. The buffer is RAM, not flash: it bridges a
 network outage, it does not survive a power loss.
+
+### CPU throttling — thermal, then power
+
+The enclosure lives **under the stairs**: poor ventilation, and Egyptian summer ambient
+temperatures on top of that. The board is mains-powered, so this is primarily about not
+cooking the processor over years of continuous running; the power saving is a secondary
+benefit and a small one.
+
+The firmware runs at **240 MHz while the system is in use** and drops to **80 MHz after
+`CPU_IDLE_MS` (1 hour) with no command on `home/pump/cmd`**, returning to full speed the
+instant a command arrives. The idle countdown restarts from every command, so the board
+spends the long idle stretches — which is most of its life, since the pump may go a week
+untouched — running cooler.
+
+**80 MHz is the floor, and the reason is not arbitrary.** At 240, 160 and 80 MHz the CPU
+is clocked from the PLL and the **APB bus stays at 80 MHz**, so UART baud rates and
+peripheral timing are unaffected. Below 80 MHz the CPU switches to the crystal, the APB
+bus follows it down, and serial output turns to garbage. WiFi also needs the PLL domain.
+So 80 MHz is the lowest setting that changes nothing functionally.
+
+**What it does not change:** WiFi, the MQTT session, the feedback pin, command latency
+and the fail-safe behaviour all carry on identically. The only observable difference is
+`cpu_mhz` in a `STATUS` reply, and two lines in the log when it switches.
+
+**What it realistically saves.** The CPU core is not the dominant heat source on a dev
+board — the LDO regulator and the WiFi radio during transmit are comparable or larger, so
+this reduces the board's thermal load, it does not solve a ventilation problem. Improving
+airflow in the enclosure matters more than this setting does.
+
+### Command attribution
+
+Commands may name the person who issued them (`ON:Mohamed`), and the firmware records
+that name in the log line for the command and returns it as `last_user` in the next
+`STATUS` reply. The intent is that the mobile app always sends its signed-in user, so the
+log answers "who turned the motor off" without ambiguity, and so the app can notify other
+users that someone changed the state.
+
+The board only records the name it is given — it does not authenticate it. Anyone holding
+the MQTT credentials can publish any name. Treat `last_user` as an audit convenience, not
+as an access control mechanism.
 
 ### Sketches
 
@@ -473,6 +573,12 @@ Uses existing mains wiring as the data path.
 | 2026-09-13 | MQTT over TLS on 8883 verified from the enclosure position at -58 dBm with a full command round trip; transport layer closed | DECIDED |
 | 2026-09-13 | Captive portal, rogue DHCP, IP conflict and IPv6 RDNSS all ruled out by measurement as causes of the LAN-wide "no internet" indicator | DECIDED |
 | 2026-09-13 | HG633 LAN disturbance accepted as a known low-severity defect; replacing the router preferred over further configuration, since the firmware is ISP-locked | DECIDED |
+| 2026-09-14 | State feedback moved from the relay loopback to the contactor's 13/14 auxiliary contact, with an external 1 kΩ pull-up to meet the 17 V / 5 mA minimum switching spec | DECIDED |
+| 2026-09-14 | `avail` (LWT), `hb` (non-retained heartbeat) and `STATUS` (on-demand) added as three independent ways to judge whether the reported state is current | DECIDED |
+| 2026-09-14 | Heartbeat slowed from 10 s to 60 s once `STATUS` covered on-demand checks; measured cost was 0.22% of the HiveMQ free-tier allowance, so message volume was never the real argument | DECIDED |
+| 2026-09-14 | `cmd` payload extended to `CMD:user`, in one message rather than a separate actor topic | DECIDED |
+| 2026-09-14 | Repeat `RESTART` refused in firmware while one is in progress; UI lock treated as advisory only | DECIDED |
+| 2026-09-14 | CPU throttled to 80 MHz after 1 h idle, back to 240 MHz on any command, for thermal headroom under the stairs | DECIDED |
 
 ---
 
@@ -574,6 +680,25 @@ The transport layer is closed. Everything below is electrical and mechanical.
 ---
 
 ## 15. Changelog
+
+### 2026-09-14
+
+- State feedback rewired in the design from the relay loopback to the contactor's 13/14
+  auxiliary contact, so `home/pump/state` reports what the contactor did rather than what
+  the relay was told to do. Added the external 1 kΩ pull-up requirement and the reasoning
+  behind it (17 V / 5 mA minimum switching capacity vs ~70 µA from the internal pull-up)
+- Added `home/pump/avail` (retained, via MQTT last will), `home/pump/hb` (non-retained
+  heartbeat carrying uptime) and a `STATUS` command replying on `home/pump/status`, and
+  documented how a subscriber should combine the three to judge staleness
+- Heartbeat interval moved 10 s → 60 s after measuring that message volume was never the
+  constraint: HiveMQ's free tier caps data, not messages, and 10 s cost ~21 MB/month
+  against a 10 GB allowance
+- `cmd` payload extended to the optional `CMD:user` form; the name is logged and returned
+  as `last_user`. Recorded explicitly that it is not authenticated
+- Repeat `RESTART` now refused by the firmware while one is running, with the reasoning
+  for enforcing it on the board rather than in the UI
+- CPU throttling added: 80 MHz after 1 h idle, 240 MHz on any command, with the APB/UART
+  reasoning for why 80 MHz is the floor. Motivated by the under-stairs enclosure
 
 ### 2026-09-13
 

@@ -49,11 +49,37 @@
  *
  * Commands accepted on cmd: ON, OFF, RESTART, STATUS. STATUS asks the
  * board to report which WiFi network it is on, its signal strength, IP,
- * uptime and current contactor state. It is the on-demand counterpart
- * to the heartbeat: instead of the board announcing itself constantly
- * whether or not anyone is listening, the app asks when it actually
- * wants to know - on open, or behind a "check controller" button. Hear
- * no reply within a second or two and the controller is not there.
+ * uptime, current contactor state, whether a restart is in progress and
+ * who issued the last command. It is the on-demand counterpart to the
+ * heartbeat: instead of the board announcing itself constantly whether
+ * or not anyone is listening, the app asks when it actually wants to
+ * know - on open, or behind a "check controller" button. Hear no reply
+ * within a second or two and the controller is not there.
+ *
+ * Command payload format: "CMD" or "CMD:user", e.g. "ON" or
+ * "ON:Mohamed". The user part is optional so a plain MQTT client can
+ * still drive the pump by hand, and it is recorded in the log and in
+ * the STATUS reply so it is always clear who changed the motor. Both
+ * halves travel in ONE message on purpose - sending the actor on a
+ * separate topic could not be correlated reliably once two people act
+ * at nearly the same time.
+ *
+ * RESTART is refused while a restart is already running. A UI can grey
+ * the button out, but only the board can actually enforce this: a UI
+ * lock is a convention that any other MQTT client ignores, and without
+ * the guard a second RESTART would simply extend the power cut by
+ * another RESTART_DELAY_MS, so repeated presses could keep the pump off
+ * indefinitely.
+ *
+ * CPU throttling: the board runs at 240 MHz while it is being used and
+ * drops to 80 MHz after CPU_IDLE_MS with no command, returning to full
+ * speed the instant one arrives. 80 MHz is the floor that keeps this
+ * safe - at 240/160/80 MHz the CPU is clocked from the PLL and the APB
+ * bus stays at 80 MHz, so UART baud rates and peripheral timing are
+ * untouched. Below 80 MHz the CPU switches to the crystal, APB follows
+ * it down, and the serial output turns to garbage. This is about heat
+ * as much as power: the enclosure lives under the stairs with poor
+ * ventilation and hot summers.
  *
  * How a subscriber should judge freshness: the retained state arrives
  * the instant it subscribes, so the button can be drawn immediately -
@@ -127,6 +153,11 @@ const uint32_t RESTART_DELAY_MS = 6000;   // how long power stays cut during a R
 // otherwise very hard to spot. At 60 s it costs a few MB a month.
 const uint32_t HEARTBEAT_MS = 60000;
 
+// --- idle CPU throttling (see header note) ---
+const uint32_t CPU_IDLE_MS   = 3600000UL;   // 1 hour of no commands -> throttle
+const uint32_t CPU_FREQ_FULL = 240;
+const uint32_t CPU_FREQ_IDLE = 80;          // do NOT go below 80: APB and UART follow
+
 // --- offline log buffer (see header note) ---
 const size_t LOG_BUF_SIZE = 4096;   // ~ enough for 60-100 typical log lines
 char     logBuf[LOG_BUF_SIZE];
@@ -145,6 +176,10 @@ bool     fbLastRaw  = false;
 uint32_t fbChangeMs = 0;
 
 uint32_t lastHeartbeatMs = 0;
+
+uint32_t lastCmdMs    = 0;       // when a command last arrived
+bool     cpuThrottled = false;
+char     lastUser[24] = "none";  // who issued the last command
 
 void relayWrite(bool on) {
   digitalWrite(PIN_RELAY, (on ^ RELAY_ACTIVE_LOW) ? HIGH : LOW);
@@ -174,14 +209,18 @@ void publishHeartbeat() {
 // back within a second or two, and the controller is offline.
 void publishStatus() {
   if (!mqtt.connected()) return;
-  char buf[220];
+  char buf[300];
   snprintf(buf, sizeof(buf),
-    "{\"ssid\":\"%s\",\"rssi\":%d,\"ip\":\"%s\",\"uptime_s\":%lu,\"state\":\"%s\"}",
+    "{\"ssid\":\"%s\",\"rssi\":%d,\"ip\":\"%s\",\"uptime_s\":%lu,"
+    "\"state\":\"%s\",\"restarting\":%s,\"last_user\":\"%s\",\"cpu_mhz\":%u}",
     WiFi.SSID().c_str(),
     (int)WiFi.RSSI(),
     WiFi.localIP().toString().c_str(),
     (unsigned long)(millis() / 1000),
-    fbStable ? "ON" : "OFF");
+    fbStable ? "ON" : "OFF",
+    restartPending ? "true" : "false",
+    lastUser,
+    (unsigned)getCpuFrequencyMhz());
   mqtt.publish(T_STATUS, buf);
 }
 
@@ -233,6 +272,24 @@ void logLine(const char *msg) {
   Serial.println(msg);
   logAppend(msg);
   flushLogToMqtt();
+}
+
+// 240 MHz while in use, 80 MHz when idle. Switching is immediate and
+// costs nothing functionally - WiFi, MQTT and the feedback pin all carry
+// on exactly as before, only slower per instruction, which this workload
+// never notices.
+void cpuFull() {
+  if (!cpuThrottled) return;
+  setCpuFrequencyMhz(CPU_FREQ_FULL);
+  cpuThrottled = false;
+  logLine("cpu: 240 MHz (command received)");
+}
+
+void cpuIdle() {
+  if (cpuThrottled) return;
+  setCpuFrequencyMhz(CPU_FREQ_IDLE);
+  cpuThrottled = true;
+  logLine("cpu: 80 MHz (idle)");
 }
 
 // Tries one network for up to timeoutMs. The "." progress dots stay
@@ -294,14 +351,31 @@ void readFeedback() {
 }
 
 void onMessage(char *topic, byte *payload, unsigned int len) {
-  char cmd[16] = {0};
-  unsigned int n = (len < 15) ? len : 15;
-  for (unsigned int i = 0; i < n; i++) cmd[i] = toupper((char)payload[i]);
-  while (n > 0 && (cmd[n-1] == '\n' || cmd[n-1] == '\r' || cmd[n-1] == ' '))
-    cmd[--n] = 0;
+  // Payload is "CMD" or "CMD:user".
+  char raw[64] = {0};
+  unsigned int n = (len < sizeof(raw) - 1) ? len : sizeof(raw) - 1;
+  memcpy(raw, payload, n);
+  raw[n] = 0;
+  while (n > 0 && (raw[n-1] == '\n' || raw[n-1] == '\r' || raw[n-1] == ' '))
+    raw[--n] = 0;
 
-  char msg[32];
-  snprintf(msg, sizeof(msg), "cmd: [%s]", cmd);
+  // Split on the first ':' - left is the command, right is who sent it.
+  char *who = strchr(raw, ':');
+  if (who) { *who = 0; who++; }
+  if (!who || !*who) who = (char *)"unknown";
+  snprintf(lastUser, sizeof(lastUser), "%s", who);
+
+  // Only the command is case-folded; a person's name keeps its own case.
+  char cmd[16] = {0};
+  for (unsigned int i = 0; i < sizeof(cmd) - 1 && raw[i]; i++)
+    cmd[i] = toupper(raw[i]);
+
+  // Any command counts as activity: wake the CPU before acting on it.
+  lastCmdMs = millis();
+  cpuFull();
+
+  char msg[96];
+  snprintf(msg, sizeof(msg), "cmd: [%s] from %s", cmd, lastUser);
   logLine(msg);
 
   if (!strcmp(cmd, "ON")) {
@@ -311,9 +385,15 @@ void onMessage(char *topic, byte *payload, unsigned int len) {
     restartPending = false;
     relayWrite(true);    // energize -> COM/NC open -> power cut
   } else if (!strcmp(cmd, "RESTART")) {
-    relayWrite(true);    // cut power first
-    restartPending = true;
-    restartAtMs = millis() + RESTART_DELAY_MS;
+    // Enforced here, not in the UI: without this a second RESTART would
+    // just push restartAtMs further out and keep the pump off.
+    if (restartPending) {
+      logLine("restart already in progress - ignored");
+    } else {
+      relayWrite(true);    // cut power first
+      restartPending = true;
+      restartAtMs = millis() + RESTART_DELAY_MS;
+    }
   } else if (!strcmp(cmd, "STATUS")) {
     publishStatus();
   }
@@ -350,6 +430,8 @@ void setup() {
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(onMessage);
   mqtt.setBufferSize(512);   // the STATUS reply does not fit the 256-byte default
+
+  lastCmdMs = millis();   // start the idle countdown from boot
 
   connectWiFiWithFallback();
   char msg[48];
@@ -388,5 +470,9 @@ void loop() {
   if (restartPending && (int32_t)(millis() - restartAtMs) >= 0) {
     restartPending = false;
     relayWrite(false);   // restore power
+    logLine("restart complete");
   }
+
+  // Drop to 80 MHz once nothing has been asked of us for a while.
+  if (!cpuThrottled && millis() - lastCmdMs >= CPU_IDLE_MS) cpuIdle();
 }
