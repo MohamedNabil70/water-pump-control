@@ -1,0 +1,34 @@
+# Line-ending policy for this repository.
+#
+# The repo stores LF, and every working tree checks out LF, on every
+# platform. Without this, Git for Windows (core.autocrlf=true by default)
+# leaves CRLF on disk while the repository holds LF. Windows hides that
+# difference, but any other environment touching the same working tree
+# reports every line of those files as changed - which is how two files
+# here once showed a 1900-line diff that contained no actual changes.
+#
+# eol=lf deliberately overrides core.autocrlf, so this holds regardless of
+# each developer's local Git configuration.
+
+* text=auto eol=lf
+
+# Source and text
+*.ino       text eol=lf
+*.h         text eol=lf
+*.c         text eol=lf
+*.cpp       text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.crt       text eol=lf
+*.pem       text eol=lf
+.gitignore  text eol=lf
+
+# Binary - never convert, never diff as text
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.bin   binary
+*.hex   binary
+*.elf   binary
