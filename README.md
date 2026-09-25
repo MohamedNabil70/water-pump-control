@@ -128,7 +128,8 @@ reliably once two people act at nearly the same moment.
 **`STATUS` reply shape:**
 
 ```json
-{"ssid":"Damasy","rssi":-58,"ip":"192.168.100.57","uptime_s":3600,
+{"fw":"1.0","build":"Sep 20 2026 12:02:24",
+ "ssid":"Damasy","rssi":-58,"ip":"192.168.100.57","uptime_s":3600,
  "state":"ON","restarting":false,"last_user":"Mohamed","cpu_mhz":240}
 ```
 
@@ -274,6 +275,55 @@ users that someone changed the state.
 The board only records the name it is given — it does not authenticate it. Anyone holding
 the MQTT credentials can publish any name. Treat `last_user` as an audit convenience, not
 as an access control mechanism.
+
+### Firmware versioning
+
+`FW_VERSION` is bumped by 0.1 for every change that gets flashed. It is printed as the
+first line of every boot log and returned in every `STATUS` reply, so "is the board
+actually running my new code?" has a definite answer rather than depending on spotting
+which log line is new. That matters now that updates arrive over the air at a board which
+is awkward to reach.
+
+`build` alongside it is `__DATE__ " " __TIME__`, filled in by the compiler. It costs
+nothing and covers the case where the version number was not bumped by mistake — which is
+precisely the case where the question is hardest to answer from the version alone.
+
+### OTA updates
+
+`ArduinoOTA`, LAN only. The board announces itself over mDNS as `pump-esp32`, so the
+Arduino IDE lists it under **Tools → Port** as a network port and Upload flashes it over
+WiFi — no cable, no trip to the enclosure. No internet is involved, so this keeps working
+during the months the internet subscription has lapsed.
+
+The upload is password protected via `OTA_PASSWORD` in `secrets.h`. This is not optional:
+without it, anyone on the LAN can reflash the board that switches mains power.
+
+**Safety during an update.** `onStart` deliberately releases the relay before the flash is
+overwritten. An upload that fails half way leaves a dead board, and a dead board must
+never be the thing holding the motor's power off — the same fail-safe reasoning as the
+rest of the design. An update therefore always ends with power flowing, whatever was
+commanded before it. `onStart` also returns the CPU to 240 MHz if it was throttled.
+
+**A failed OTA does not brick the board.** The new image is written to the inactive
+partition and the bootloader only switches to it after the image verifies, so a failed
+upload simply leaves the previous firmware running and can be retried.
+
+**Known cosmetic warning.** Uploads frequently end with `Unexpected response from device`
+after reaching 100% and printing `Done`. Reading `espota.py`, that message is emitted
+*after* all firmware data has been sent, while the tool waits for a final `OK`; it is a
+warning, not an error, and the tool still exits successfully. The device acknowledges each
+1024-byte chunk by echoing the byte count, then sends `OK` and reboots immediately — the
+reboot tears down the socket, and the tool reads the leftover final-chunk acknowledgement
+(a number below 1024) instead of the `OK`. **Do not treat the upload tool's output as the
+success signal.** Confirm the version reported by the boot log or a `STATUS` reply.
+
+**If the board never appears in the IDE port list**, that is mDNS discovery being filtered
+on the network rather than a fault on the board — the HG633 access point already shows
+questionable layer-2 behaviour (see [6.4](#64-access-point-disturbs-the-rest-of-the-lan--low)).
+The upload still works addressed by IP; ask the board for its address with `STATUS`.
+
+**The first upload of OTA firmware must be over the cable**, since the firmware being
+replaced has no OTA listener.
 
 ### Sketches
 
@@ -579,6 +629,10 @@ Uses existing mains wiring as the data path.
 | 2026-09-14 | `cmd` payload extended to `CMD:user`, in one message rather than a separate actor topic | DECIDED |
 | 2026-09-14 | Repeat `RESTART` refused in firmware while one is in progress; UI lock treated as advisory only | DECIDED |
 | 2026-09-14 | CPU throttled to 80 MHz after 1 h idle, back to 240 MHz on any command, for thermal headroom under the stairs | DECIDED |
+| 2026-09-20 | ArduinoOTA adopted for firmware updates over the LAN, password protected, with the relay released at `onStart` so a failed upload cannot leave the pump cut off | DECIDED |
+| 2026-09-20 | Full GitHub-driven OTA (HTTP OTA + Actions build) deferred: the compiled `.bin` embeds the WiFi and MQTT credentials as plain strings, so publishing it from a public repo would undo the `secrets.h` split. Revisit only after credentials move to NVS | DECIDED |
+| 2026-09-20 | Sketch measured at 991,712 of 1,310,720 bytes (75%), confirming the board is already on an OTA-capable partition scheme with room to grow | FINDING |
+| 2026-09-20 | `FW_VERSION` added, bumped by 0.1 per flashed change, reported in the boot log and in `STATUS` | DECIDED |
 
 ---
 
@@ -680,6 +734,21 @@ The transport layer is closed. Everything below is electrical and mechanical.
 ---
 
 ## 15. Changelog
+
+### 2026-09-20
+
+- **OTA updates working.** `ArduinoOTA` added and verified end to end: an update was
+  uploaded over WiFi and the board came back running it. Password protected, and the relay
+  is released before the flash is overwritten so a half-finished upload cannot leave the
+  pump without power
+- Added `FW_VERSION` (bumped 0.1 per flashed change) and a compiler-filled `build`
+  timestamp, both reported at boot and in `STATUS`, so the running build is never in doubt
+- Documented the `Unexpected response from device` warning seen at the end of uploads,
+  with the reason from `espota.py`'s own source, and the rule that the upload tool's output
+  is not the success signal — the reported version is
+- Recorded why the GitHub-driven OTA pipeline is deferred rather than rejected: the
+  compiled binary contains the credentials that `secrets.h` was created to keep out of the
+  public repo
 
 ### 2026-09-14
 

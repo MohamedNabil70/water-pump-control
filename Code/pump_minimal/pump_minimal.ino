@@ -111,16 +111,55 @@
  * gone. If it fills up before a connection comes back, the OLDEST lines
  * are dropped (overwritten) to make room for new ones.
  *
+ * OTA updates (ArduinoOTA, LAN only): the board advertises itself over
+ * mDNS as OTA_HOSTNAME, so the Arduino IDE lists it under Tools > Port as
+ * a network port and Upload flashes it over WiFi - no cable, no trip to
+ * the enclosure. No internet is involved: this is local-network only, so
+ * it keeps working during the months the internet subscription has
+ * lapsed. It is password protected, and that is not optional - without a
+ * password anyone on the LAN could reflash the board that switches mains
+ * power to the pump.
+ *
+ * If the board never appears in the IDE's port list, that is mDNS
+ * discovery being filtered somewhere on the network, not a fault in the
+ * board - the upload still works when addressed by IP directly. Ask the
+ * board for its current address with a STATUS command.
+ *
+ * Safety during an update: onStart deliberately releases the relay before
+ * the flash is overwritten. An upload that fails half way leaves a dead
+ * board, and a dead board must never be the thing holding the motor's
+ * power off - the same fail-safe reasoning as the rest of this design.
+ * An update therefore always ends with power flowing, whatever was
+ * commanded before it.
+ *
+ * Firmware version: FW_VERSION is bumped by 0.1 for every change that
+ * gets flashed. It is printed in the boot log and returned in every
+ * STATUS reply, so "is the board actually running my new code?" has a
+ * definite answer instead of depending on remembering which log line was
+ * new - which matters now that updates go over the air to a board that
+ * is awkward to reach. FW_BUILD is filled in by the compiler and covers
+ * the case the version number was forgotten, which is exactly the case
+ * where the question is hardest to answer.
+ *
  * Library: PubSubClient (Nick O'Leary)
  */
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <ArduinoOTA.h>
 
 #include "secrets.h"   // WIFI_SSID_1/2, WIFI_PASS_1/2, MQTT_HOST/PORT/USER/PASS
 
 const uint32_t WIFI_TIMEOUT_MS = 15000;   // how long to try each network before moving on
+
+// Bump by 0.1 on every change that gets flashed. See the header note.
+const char *FW_VERSION = "1.0";
+const char *FW_BUILD   = __DATE__ " " __TIME__;
+
+// Name the board announces over mDNS; this is what appears in the Arduino
+// IDE's port list. The OTA password lives in secrets.h.
+const char *OTA_HOSTNAME = "pump-esp32";
 
 const char *T_CMD   = "home/pump/cmd";
 const char *T_STATE = "home/pump/state";   // relay feedback, retained
@@ -209,10 +248,13 @@ void publishHeartbeat() {
 // back within a second or two, and the controller is offline.
 void publishStatus() {
   if (!mqtt.connected()) return;
-  char buf[300];
+  char buf[360];
   snprintf(buf, sizeof(buf),
-    "{\"ssid\":\"%s\",\"rssi\":%d,\"ip\":\"%s\",\"uptime_s\":%lu,"
+    "{\"fw\":\"%s\",\"build\":\"%s\","
+    "\"ssid\":\"%s\",\"rssi\":%d,\"ip\":\"%s\",\"uptime_s\":%lu,"
     "\"state\":\"%s\",\"restarting\":%s,\"last_user\":\"%s\",\"cpu_mhz\":%u}",
+    FW_VERSION,
+    FW_BUILD,
     WiFi.SSID().c_str(),
     (int)WiFi.RSSI(),
     WiFi.localIP().toString().c_str(),
@@ -290,6 +332,40 @@ void cpuIdle() {
   setCpuFrequencyMhz(CPU_FREQ_IDLE);
   cpuThrottled = true;
   logLine("cpu: 80 MHz (idle)");
+}
+
+// LAN-only firmware updates over WiFi. See the header note for why the
+// relay is released before the flash is overwritten.
+void setupOTA() {
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setPassword(OTA_PASSWORD);
+
+  ArduinoOTA.onStart([]() {
+    // Full speed for the flash write, and put the pump back into the safe
+    // state first: from here until the reboot completes, this board is not
+    // in control of anything, so it must not be holding power off.
+    cpuFull();
+    restartPending = false;
+    relayWrite(false);
+    logLine("ota: update starting - relay released, pump powered");
+  });
+
+  ArduinoOTA.onEnd([]() {
+    logLine("ota: image written, rebooting");
+  });
+
+  ArduinoOTA.onError([](ota_error_t error) {
+    char msg[48];
+    snprintf(msg, sizeof(msg), "ota: FAILED (error %u)", (unsigned)error);
+    logLine(msg);
+  });
+
+  ArduinoOTA.begin();
+
+  char msg[80];
+  snprintf(msg, sizeof(msg), "ota: ready as %s at %s",
+           OTA_HOSTNAME, WiFi.localIP().toString().c_str());
+  logLine(msg);
 }
 
 // Tries one network for up to timeoutMs. The "." progress dots stay
@@ -421,6 +497,15 @@ void setup() {
 
   Serial.begin(115200);
 
+  // First line of every boot, so the log always opens by saying which
+  // build is talking. It buffers until MQTT is up, then goes out with the
+  // rest of the backlog.
+  {
+    char v[72];
+    snprintf(v, sizeof(v), "fw %s (built %s)", FW_VERSION, FW_BUILD);
+    logLine(v);
+  }
+
   WiFi.mode(WIFI_STA);
   // We handle reconnection ourselves (cycling both networks from loop()),
   // so the built-in single-SSID auto-reconnect would only get in the way.
@@ -437,6 +522,8 @@ void setup() {
   char msg[48];
   snprintf(msg, sizeof(msg), "IP: %s", WiFi.localIP().toString().c_str());
   logLine(msg);
+
+  setupOTA();
 }
 
 void loop() {
@@ -444,6 +531,8 @@ void loop() {
     logLine("WiFi disconnected - reconnecting");
     connectWiFiWithFallback();
   }
+
+  ArduinoOTA.handle();
 
   if (WiFi.status() == WL_CONNECTED && !mqtt.connected()
       && millis() - lastTryMs > 5000) {

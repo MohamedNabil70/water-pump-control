@@ -18,3 +18,6 @@
 #define MQTT_PORT 8883
 #define MQTT_USER "YOUR_MQTT_USERNAME"
 #define MQTT_PASS "YOUR_MQTT_PASSWORD"
+
+// OTA upload password - required, and must not be left as a default.
+#define OTA_PASSWORD "YOUR_OTA_UPLOAD_PASSWORD"
