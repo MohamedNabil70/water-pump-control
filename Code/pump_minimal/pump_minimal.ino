@@ -132,6 +132,22 @@
  * An update therefore always ends with power flowing, whatever was
  * commanded before it.
  *
+ * State reporting: home/pump/state is published on three occasions, and
+ * they are deliberately separate. (1) On every settled change of the
+ * feedback pin - the live signal. (2) Once when MQTT connects, to refresh
+ * the retained value. (3) STATE_CONFIRM_MS after any command that changes
+ * the pump, whether or not the reading moved.
+ *
+ * The third one exists because silence is ambiguous: if a command
+ * produced no change of state, the app could not tell whether the board
+ * ignored it, the relay failed, or the contactor never moved. Publishing
+ * regardless turns that silence into an answer. It is deliberately
+ * DELAYED rather than immediate - publishing the instant the command
+ * arrives would report the pin's value from before the contactor had
+ * time to move, which is worse than not publishing at all. The log line
+ * that goes with it prints measured and commanded side by side and marks
+ * a MISMATCH, which is what a failed actuation actually looks like.
+ *
  * Pin map: GPIO 26 drives the relay, GPIO 13 reads the contactor's
  * auxiliary contact, GPIO 33 is reserved as the fan output and is held
  * low (fan off) until the fan logic exists. GPIO 33 is deliberately the
@@ -163,7 +179,7 @@
 const uint32_t WIFI_TIMEOUT_MS = 15000;   // how long to try each network before moving on
 
 // Bump by 0.1 on every change that gets flashed. See the header note.
-const char *FW_VERSION = "1.1";
+const char *FW_VERSION = "1.2";
 const char *FW_BUILD   = __DATE__ " " __TIME__;
 
 // Name the board announces over mDNS; this is what appears in the Arduino
@@ -200,6 +216,10 @@ const int  PIN_FAN = 33;
 
 const uint32_t RESTART_DELAY_MS = 6000;   // how long power stays cut during a RESTART
 
+// How long to wait after a command before publishing the resulting state.
+// Must outlast the contactor's mechanical travel plus FB_DEBOUNCE_MS.
+const uint32_t STATE_CONFIRM_MS = 1000;
+
 // Heartbeat period. This is now a slow background sanity signal, not the
 // primary liveness check - avail answers that within ~22 s for free, and
 // STATUS answers it on demand and instantly. What the heartbeat still
@@ -231,6 +251,10 @@ bool     fbLastRaw  = false;
 uint32_t fbChangeMs = 0;
 
 uint32_t lastHeartbeatMs = 0;
+
+bool     confirmPending = false;  // a command is awaiting its state report
+uint32_t confirmAtMs    = 0;
+bool     cmdWantsOn     = false;  // what that command intended
 
 uint32_t lastCmdMs    = 0;       // when a command last arrived
 bool     cpuThrottled = false;
@@ -473,9 +497,15 @@ void onMessage(char *topic, byte *payload, unsigned int len) {
   if (!strcmp(cmd, "ON")) {
     restartPending = false;
     relayWrite(false);   // de-energize -> COM/NC closed -> power to motor
+    cmdWantsOn = true;
+    confirmPending = true;
+    confirmAtMs = millis() + STATE_CONFIRM_MS;
   } else if (!strcmp(cmd, "OFF")) {
     restartPending = false;
     relayWrite(true);    // energize -> COM/NC open -> power cut
+    cmdWantsOn = false;
+    confirmPending = true;
+    confirmAtMs = millis() + STATE_CONFIRM_MS;
   } else if (!strcmp(cmd, "RESTART")) {
     // Enforced here, not in the UI: without this a second RESTART would
     // just push restartAtMs further out and keep the pump off.
@@ -485,6 +515,10 @@ void onMessage(char *topic, byte *payload, unsigned int len) {
       relayWrite(true);    // cut power first
       restartPending = true;
       restartAtMs = millis() + RESTART_DELAY_MS;
+      // A restart ends with power flowing, so confirm after it finishes.
+      cmdWantsOn = true;
+      confirmPending = true;
+      confirmAtMs = restartAtMs + STATE_CONFIRM_MS;
     }
   } else if (!strcmp(cmd, "STATUS")) {
     publishStatus();
@@ -577,6 +611,19 @@ void loop() {
   if (millis() - lastHeartbeatMs >= HEARTBEAT_MS) publishHeartbeat();
 
   readFeedback();
+
+  // Report the state a command produced, changed or not. This is the
+  // answer to "did that command actually do anything?".
+  if (confirmPending && (int32_t)(millis() - confirmAtMs) >= 0) {
+    confirmPending = false;
+    publishFeedback(fbStable);
+    char msg[80];
+    snprintf(msg, sizeof(msg), "state after cmd: measured=%s commanded=%s%s",
+             fbStable   ? "ON" : "OFF",
+             cmdWantsOn ? "ON" : "OFF",
+             (fbStable == cmdWantsOn) ? "" : "   <-- MISMATCH");
+    logLine(msg);
+  }
 
   if (restartPending && (int32_t)(millis() - restartAtMs) >= 0) {
     restartPending = false;
