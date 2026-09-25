@@ -76,7 +76,7 @@ remote layer is additive, never load-bearing for basic operation.
       |     ESP32      |   <-- transport layer UNRESOLVED (see Open Problems)
       +----------------+
          |          ^
-   GPIO 26          | GPIO 27  (relay feedback contact, INPUT_PULLUP)
+   GPIO 26          | GPIO 13  (contactor aux contact 13/14, INPUT_PULLUP)
          v          |
       +--------------------------+
       | Optocoupler relay module |   1-channel, 5 V, opto-isolated
@@ -181,12 +181,12 @@ only holds once `setup()` has executed.
 
 ### State feedback from the contactor
 
-`GPIO 27` reads the contactor's **NO auxiliary contact — terminals 13/14** on the
+`GPIO 13` reads the contactor's **NO auxiliary contact — terminals 13/14** on the
 LC1E0910, so what gets reported is what the contactor actually did, not merely what the
 firmware asked for. The reading is debounced (150 ms) before it is published retained on
 `home/pump/state`.
 
-Wiring: `ESP32 GND → terminal 13`, `terminal 14 → GPIO 27`.
+Wiring: `ESP32 GND → terminal 13`, `terminal 14 → GPIO 13`.
 
 An auxiliary contact is a **dry contact** — it carries no voltage of its own, only
 whatever is fed into terminal 13. Feeding it the ESP32's own ground keeps the whole loop
@@ -194,17 +194,17 @@ at 3.3 V and means no isolation is needed, **provided 13/14 are wired to nothing
 The terminals still sit on a body carrying 220 VAC, so the pair is routed and insulated
 as mains-adjacent wiring.
 
-**Use an external 1 kΩ pull-up from GPIO 27 to 3.3 V**, not the internal one. Schneider
+**Use an external 1 kΩ pull-up from GPIO 13 to 3.3 V**, not the internal one. Schneider
 rates this auxiliary contact for a minimum switching capacity of **17 V / 5 mA**; the
 ESP32's ~45 kΩ internal pull-up passes only ~70 µA, far too little to break through the
 oxide film that forms on the contact surface, which shows up as intermittent false
 readings. 1 kΩ gives ~3.3 mA.
 
-Until 13/14 are physically wired, GPIO 27 sits at the pull-up and reports `OFF`
+Until 13/14 are physically wired, GPIO 13 sits at the pull-up and reports `OFF`
 permanently — expected, not a fault.
 
 *Superseded:* an earlier bench-test loopback read a spare contact on the relay module
-itself (`ESP32 GND → relay COM`, `relay NO → GPIO 27`). That verified only that the relay
+itself (`ESP32 GND → relay COM`, `relay NO → GPIO 13`). That verified only that the relay
 clicked, and a 1-channel relay has a single COM terminal, so it cannot coexist with the
 production COM/NC wiring. It remains usable for testing the control chain **before** the
 contactor is in circuit.
@@ -275,6 +275,22 @@ users that someone changed the state.
 The board only records the name it is given — it does not authenticate it. Anyone holding
 the MQTT credentials can publish any name. Treat `last_user` as an audit convenience, not
 as an access control mechanism.
+
+### Pin map
+
+| Pin | Mode | Use |
+|---|---|---|
+| GPIO 26 | output | relay control signal, active-low. Needs an external **10 kΩ pull-up to 3.3 V** for boot-time fail-safe |
+| GPIO 13 | `INPUT_PULLUP` | contactor auxiliary contact 13/14. Needs an external **1 kΩ pull-up to 3.3 V** (contact rated 17 V / 5 mA minimum) |
+| GPIO 33 | output, held LOW | **reserved** for the enclosure fan. No logic yet — the pin is claimed and driven low so it cannot float |
+
+GPIO 33 is deliberately the reserved one: it is on ADC1, which keeps working while WiFi is
+active, so if the fan idea later becomes an analog temperature sensor instead, that pin can
+take it directly. GPIO 13 is on ADC2, which the radio makes unusable for analog anyway, so
+the permanently-digital feedback input goes there and no capability is wasted.
+
+Avoid for new functions: 0, 2, 12, 15 (strapping pins), 34–39 (input-only, no internal
+pull-ups), 6–11 (wired to the board's flash).
 
 ### Firmware versioning
 
@@ -611,7 +627,7 @@ Uses existing mains wiring as the data path.
 | (date TBC) | Schneider LC1E0910 purchased, superseding Himel HDC3-0911M7 | DECIDED |
 | (date TBC) | Credentials split into a gitignored `secrets.h` | DECIDED |
 | (date TBC) | Fail-safe via relay COM/NC wiring plus a 10 kΩ hardware pull-up on GPIO 26 | DECIDED |
-| (date TBC) | Relay feedback read back on GPIO 27, debounced 150 ms, published retained on `home/pump/state` | DECIDED |
+| (date TBC) | Relay feedback read back on GPIO 13, debounced 150 ms, published retained on `home/pump/state` | DECIDED |
 | (date TBC) | Dual WiFi credential sets cycled at 15 s; built-in auto-reconnect disabled | DECIDED |
 | (date TBC) | Serial log mirrored to `home/pump/log` with a 4 KB RAM ring buffer | DECIDED |
 | 2026-09-11 | Site survey performed; both house networks unusable at the pump | FINDING |
@@ -704,7 +720,7 @@ The transport layer is closed. Everything below is electrical and mechanical.
 ### Immediate — the highest-risk untested item
 
 1. **Bench test ESP32 → relay → contactor with no pump connected.** The fail-safe design is
-   written and implemented but has **never been run once**. Include the GPIO 27 feedback
+   written and implemented but has **never been run once**. Include the GPIO 13 feedback
    loopback and, specifically, the 10 kΩ pull-up behaviour through a full ESP32 reset — the
    whole fail-safe guarantee during boot rests on that resistor.
 2. **Verify LC1E0910 coil voltage**, contact rating, load category and terminal

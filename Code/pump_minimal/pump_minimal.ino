@@ -26,7 +26,7 @@
  * contact - terminals 13/14 on the Schneider LC1E0910M5 - so what we
  * report is what the contactor actually did, not merely what we asked
  * it to do.
- *   ESP32 GND -> terminal 13, terminal 14 -> PIN_FEEDBACK.
+ *   ESP32 GND -> terminal 13, terminal 14 -> PIN_FEEDBACK (GPIO 13).
  *   The aux contact is a dry contact: it carries only the voltage we
  *   feed into it, so this loop sits at 3.3 V throughout and needs no
  *   isolation - PROVIDED 13/14 are wired to nothing else.
@@ -132,6 +132,15 @@
  * An update therefore always ends with power flowing, whatever was
  * commanded before it.
  *
+ * Pin map: GPIO 26 drives the relay, GPIO 13 reads the contactor's
+ * auxiliary contact, GPIO 33 is reserved as the fan output and is held
+ * low (fan off) until the fan logic exists. GPIO 33 is deliberately the
+ * reserved one: it sits on ADC1, which still works while WiFi is on,
+ * so if the fan plan later turns into an analog temperature sensor
+ * instead, that pin can take it directly. GPIO 13 is ADC2, which the
+ * radio makes unusable for analog anyway, so the permanently-digital
+ * feedback input goes there and nothing is wasted.
+ *
  * Firmware version: FW_VERSION is bumped by 0.1 for every change that
  * gets flashed. It is printed in the boot log and returned in every
  * STATUS reply, so "is the board actually running my new code?" has a
@@ -154,7 +163,7 @@
 const uint32_t WIFI_TIMEOUT_MS = 15000;   // how long to try each network before moving on
 
 // Bump by 0.1 on every change that gets flashed. See the header note.
-const char *FW_VERSION = "1.0";
+const char *FW_VERSION = "1.1";
 const char *FW_BUILD   = __DATE__ " " __TIME__;
 
 // Name the board announces over mDNS; this is what appears in the Arduino
@@ -178,9 +187,16 @@ const bool RELAY_ACTIVE_LOW = true;
 // The pull-up idles PIN_FEEDBACK HIGH. The contactor's aux contact 13/14
 // pulls it to GND only while the contactor has actually pulled in, so
 // this reports what the hardware did rather than what we asked for.
-const int  PIN_FEEDBACK        = 27;
+const int  PIN_FEEDBACK        = 13;
 const bool FEEDBACK_ACTIVE_LOW = true;
 const uint32_t FB_DEBOUNCE_MS  = 150;
+
+// Reserved for the enclosure fan. Held LOW = fan off. No logic yet; this
+// only claims the pin and stops it floating. The assumption is a low-side
+// MOSFET with an active-high gate, which also wants its own ~10k gate
+// pull-down so the fan cannot twitch during the ESP32's boot, before this
+// line runs.
+const int  PIN_FAN = 33;
 
 const uint32_t RESTART_DELAY_MS = 6000;   // how long power stays cut during a RESTART
 
@@ -481,6 +497,12 @@ void setup() {
   relayWrite(false);            // set the level BEFORE the pin becomes an output
   pinMode(PIN_RELAY, OUTPUT);
   relayWrite(false);
+
+  // Fan output: drive the safe level before the pin becomes an output, so
+  // it never twitches on the way up.
+  digitalWrite(PIN_FAN, LOW);
+  pinMode(PIN_FAN, OUTPUT);
+  digitalWrite(PIN_FAN, LOW);
 
   // The external 1k pull-up does the real work here (see header); the
   // internal one costs nothing and keeps the pin defined if that
