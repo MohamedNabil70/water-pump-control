@@ -6,12 +6,13 @@ ESP32-based IoT retrofit that adds remote **ON / OFF / RESTART** control to an e
 residential water pump over MQTT, **without replacing the pump's existing automatic
 controller**.
 
-> **Status as of 2026-09-13: transport layer RESOLVED. Remaining work is electrical.**
-> Option A is implemented: a ground-floor access point is installed and the ESP32 holds an
-> MQTT-over-TLS session with HiveMQ Cloud from the enclosure position at **-58 dBm**,
-> verified end to end with a command round trip. The open items are now mechanical and
-> electrical — DMAX topology, contactor coil voltage, and the bench test of the control
-> chain, which has still never been run. See [Open Problems](#6-open-problems).
+> **Status as of 2026-11-02: in service, still in active development.** The system has been
+> switching the real pump through the contactor for about three weeks and has been stable,
+> with state read back from the contactor's 13/14 auxiliary contact. This README reflects
+> work in progress and is not final. Open items: the protection components (10 kΩ boot
+> pull-up, fuse, snubber), a permanent enclosure, a PumpLink bug where user names
+> disappear, occasional internet drops, and migrating off the current HiveMQ Cloud cluster
+> before it is retired at the end of December 2026. See [Open Problems](#6-open-problems).
 
 ---
 
@@ -425,6 +426,25 @@ so TCP survives — it retries — and the short-timeout probe does not.
 this project. Accepted as a known defect rather than fixed; see the diagnosis record below
 for why, and [section 8](#8-options-under-evaluation) for the replacement option.
 
+### 6.5 HiveMQ Cloud cluster being retired — HIGH
+
+**Reported:** 2026-11. The provider has said the current cluster will be retired at the end
+of December 2026. Both the ESP32 and PumpLink depend on it, so a replacement broker (or a
+new cluster) must be chosen, the firmware re-flashed over OTA, and every phone's
+connection settings updated before then.
+
+### 6.6 PumpLink: user names disappear — MEDIUM
+
+Names on the family roster (`home/pump/users`, retained) go missing. Not yet debugged.
+Suspects to check first: concurrent last-write-wins updates to the retained roster, and a
+client publishing an empty or partial roster on open.
+
+### 6.7 Protection components and boot pull-up not fitted — MEDIUM
+
+The system is in service without the 10 kΩ pull-up on GPIO 26, the control-branch fuse
+and the RC snubber, and in a temporary enclosure. Without the pull-up, the relay state
+during an ESP32 reset is not guaranteed by hardware.
+
 ### Resolved
 
 | Problem | Resolution |
@@ -599,20 +619,19 @@ Uses existing mains wiring as the data path.
 
 | Layer | State |
 |---|---|
+| Overall | **In service** for about three weeks, stable — still under evaluation |
 | Electrical architecture | Settled |
-| Main components | Purchased |
-| Mobile app front end | Working PWA — [Damasy-Pumplink](https://github.com/MohamedNabil70/Damasy-Pumplink) |
-| MQTT broker | HiveMQ Cloud cluster provisioned |
-| Transport layer | **Resolved** — ground-floor AP installed, Option A as built |
-| Firmware — connectivity | Written and **verified at the pump position**, -58 dBm |
-| MQTT over TLS on 8883 | **Verified end to end** — command sent, status returned |
-| Firmware — ON/OFF/RESTART logic | Written in `pump_minimal` |
-| Fail-safe behaviour | Designed and implemented — not bench tested |
-| Relay feedback path | Implemented — not bench tested |
-| Long-run link stability | Not measured beyond a few minutes |
-| Mains wiring topology | Not frozen |
-| Bench test of control chain | Not performed |
-| Mains integration | Not started |
+| Main components | Purchased and installed |
+| Mains integration | **Done** — contactor switching the DMAX/pump circuit |
+| Contactor state feedback (13/14 aux) | **Working** |
+| Firmware — ON/OFF/RESTART logic | Working in service |
+| MQTT over TLS on 8883 | Working; occasional drops traced to the home internet link |
+| Mobile app front end | Working PWA — [Damasy-Pumplink](https://github.com/MohamedNabil70/Damasy-Pumplink); known bug: user names disappear |
+| MQTT broker | HiveMQ Cloud — **current cluster retired end of December 2026, replacement needed** |
+| 10 kΩ boot pull-up on GPIO 26 | **Not fitted** — boot-time fail-safe not yet guaranteed |
+| Fuse, RC snubber | Not fitted |
+| Enclosure | Temporary, not final |
+| Formal functional test matrix | Not yet run |
 
 ---
 
@@ -717,41 +736,52 @@ inductive motor load. The following are requirements, not suggestions.
 
 ## 14. Next Steps
 
-The transport layer is closed. Everything below is electrical and mechanical.
+The system is in service. Remaining work is hardening, a broker migration, and software
+improvements.
 
-### Immediate — the highest-risk untested item
+### Immediate
 
-1. **Bench test ESP32 → relay → contactor with no pump connected.** The fail-safe design is
-   written and implemented but has **never been run once**. Include the GPIO 13 feedback
-   loopback and, specifically, the 10 kΩ pull-up behaviour through a full ESP32 reset — the
-   whole fail-safe guarantee during boot rests on that resistor.
-2. **Verify LC1E0910 coil voltage**, contact rating, load category and terminal
-   identification. This decides whether the control run is mains-level or SELV, which
-   drives the enclosure design.
-3. **Document the existing DMAX installation** from the physical hardware: input, output,
-   pump connection, L/N/PE, existing protection, current behaviour. Tagged `UNKNOWN` —
-   must not be guessed.
+1. **Fit the 10 kΩ pull-up on GPIO 26**, then verify relay behaviour through a full ESP32
+   reset.
+2. **Plan the broker migration** before the HiveMQ cluster is retired (end of December
+   2026). See [6.5](#65-hivemq-cloud-cluster-being-retired--high).
+3. **Debug the PumpLink roster bug.** See [6.6](#66-pumplink-user-names-disappear--medium).
 
-### After those three
+### Hardening
 
-4. Verify relay module input requirements against ESP32 GPIO, and output rating against
-   the coil
-5. Specify protection: fuse, snubber, earthing, enclosure, wire gauges
-6. Mains integration
-7. Functional test matrix: local ON/OFF, remote ON/OFF, restart, ESP32 reboot, WiFi loss,
-   MQTT loss, power restoration, DMAX automatic operation, repeated motor starts
+4. Fit the fuse and RC snubber; finalise earthing and wire gauges
+5. Final enclosure
+6. Run the functional test matrix: local ON/OFF, remote ON/OFF, restart, ESP32 reboot,
+   WiFi loss, MQTT loss, power restoration, DMAX automatic operation, repeated motor starts
+
+### Software
+
+7. Firmware fixes from PumpLink's known limitations (`last_user` on `STATUS`,
+   `restart_left_ms`, name escaping); consolidate `pump_minimal` and `pump_control`
+8. Move credentials to NVS, then CI builds with signed HTTP OTA
+9. Small backend for persistent history and push notifications
+10. MQTT simulator for hardware-free testing
 
 ### Network follow-ups — optional, not blocking
 
-8. Measure long-run link stability: let the ESP32 run and count gaps in `home/pump/hb` and
-   resets of `uptime_s`. Converts "holds the session" from minutes to a real number.
-9. Replace the HG633 with a plain router or access point, which is expected to clear
+11. Quantify link stability: count gaps in `home/pump/hb` and resets of `uptime_s`, and
+    separate home-internet drops from broker-side drops.
+12. Replace the HG633 with a plain router or access point, which is expected to clear
    [6.4](#64-access-point-disturbs-the-rest-of-the-lan--low)
-10. Measure RSSI with the ESP32 inside the closed enclosure on `Damasy`
+13. Measure RSSI with the ESP32 inside the final enclosure on `Damasy`
 
 ---
 
 ## 15. Changelog
+
+### 2026-11-02
+
+- Status updated: the system has been in service on the real pump for about three weeks
+  and has been stable; contactor 13/14 feedback is working
+- Added open problems: HiveMQ cluster retirement (end of December 2026), the PumpLink
+  user-name bug, and protection components not yet fitted
+- Next Steps rewritten around hardening, the broker migration and software work
+- Survey credentials moved out of `wifi_survey.ino` into `secrets.h`; MIT license added
 
 ### 2026-09-20
 
