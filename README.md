@@ -1,5 +1,7 @@
 # Water Pump Remote Control
 
+> **Mobile app (PumpLink PWA):** https://github.com/MohamedNabil70/Damasy-Pumplink
+
 ESP32-based IoT retrofit that adds remote **ON / OFF / RESTART** control to an existing
 residential water pump over MQTT, **without replacing the pump's existing automatic
 controller**.
@@ -73,7 +75,7 @@ remote layer is additive, never load-bearing for basic operation.
               |  MQTT
               v
       +----------------+
-      |     ESP32      |   <-- transport layer UNRESOLVED (see Open Problems)
+      |     ESP32      |   <-- transport resolved 2026-09-13 (ground-floor AP)
       +----------------+
          |          ^
    GPIO 26          | GPIO 13  (contactor aux contact 13/14, INPUT_PULLUP)
@@ -599,7 +601,7 @@ Uses existing mains wiring as the data path.
 |---|---|
 | Electrical architecture | Settled |
 | Main components | Purchased |
-| Mobile app front end | In development (Claude Design) |
+| Mobile app front end | Working PWA — [Damasy-Pumplink](https://github.com/MohamedNabil70/Damasy-Pumplink) |
 | MQTT broker | HiveMQ Cloud cluster provisioned |
 | Transport layer | **Resolved** — ground-floor AP installed, Option A as built |
 | Firmware — connectivity | Written and **verified at the pump position**, -58 dBm |

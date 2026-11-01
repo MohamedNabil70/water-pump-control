@@ -37,8 +37,11 @@ const uint32_t ROUND_DELAY_MS = 3000;
 // Runs every CONNECT_TEST_EVERY rounds. Set to 0 to disable.
 #define DO_CONNECT_TEST     1
 #define CONNECT_TEST_EVERY  4
-const char* TEST_SSID = "Damasy";
-const char* TEST_PASS = "#Pop.Rt8@@#";
+// Credentials come from secrets.h (gitignored), same as pump_minimal.
+// Copy ../pump_minimal/secrets_example.h to secrets.h in this folder.
+#include "secrets.h"
+const char* TEST_SSID = WIFI_SSID_1;
+const char* TEST_PASS = WIFI_PASS_1;
 
 // ---- internet reachability probe ----
 // Association alone does not prove traffic flows. This resolves a
