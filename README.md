@@ -157,7 +157,7 @@ mechanisms answer that, in increasing order of confidence:
 
 ## 3. Control Design and Fail-Safe Behaviour
 
-`DECIDED` — designed and implemented in `Code/pump_minimal`. **Not yet bench tested.**
+`DECIDED` — implemented in `Code/pump_minimal` and in service since October 2026. The 10 kΩ boot pull-up is **not yet fitted**, so the boot-time part of the guarantee is not yet in place.
 
 ### Fail-safe switching philosophy
 
@@ -449,7 +449,7 @@ during an ESP32 reset is not guaranteed by hardware.
 
 | Problem | Resolution |
 |---|---|
-| Fail-safe behaviour undefined | Resolved 2026-09-12. NC-contact wiring plus a 10 kΩ hardware pull-up, implemented in `pump_minimal`. See [section 3](#3-control-design-and-fail-safe-behaviour). Bench verification still outstanding. |
+| Fail-safe behaviour undefined | Resolved 2026-09-12. NC-contact wiring plus a 10 kΩ hardware pull-up, implemented in `pump_minimal`. See [section 3](#3-control-design-and-fail-safe-behaviour). In service; 10 kΩ pull-up still to be fitted. |
 | No WiFi coverage at the pump location (was the project BLOCKER) | Resolved 2026-09-13 by Option A. A spare Huawei HG633-12 was installed as a ground-floor access point (`Damasy`, ch 11, cabled LAN-to-LAN2 from the Nabil router). Signal at the enclosure position went from **-92 dBm, 10/16 detection** to **-58 dBm**, and the ESP32 now opens and holds MQTT over TLS on port 8883. See [section 8](#8-options-under-evaluation). |
 | ESP32 would not associate with the new AP | Resolved 2026-09-13. **A typo, not a network fault.** `secrets.h` held the `Damasy` PSK with its leading `#` missing (10 chars instead of 11), so the 4-way handshake failed, `WiFi.status()` never reached `WL_CONNECTED`, and the firmware's 15 s timeout handed the connection to the backup SSID every time. The symptom looked exactly like an AP rejecting the client. See the lesson in the diagnosis record below. |
 
